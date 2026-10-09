@@ -778,6 +778,7 @@
         "warranty_days": "Warranty · {days} days left",
         "no_photo": "No photo",
         "in_days": "In {days} days",
+        "today": "Today",
         "ends": "ends",
         "mark_done": "Mark done",
         "see_item": "See the item",

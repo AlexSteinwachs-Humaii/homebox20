@@ -101,7 +101,11 @@ func TestCareQueue(t *testing.T) {
 	require.Equal(t, upcoming.ID, *out.ComingUp[0].MaintenanceID)
 	require.Equal(t, overdue.ID, *out.NeedsYou[0].MaintenanceID)
 	require.Equal(t, 6, out.NeedsYou[0].DaysLate)
+	require.Equal(t, "Replace filter", out.NeedsYou[0].Name)
+	require.Equal(t, "Drill", out.NeedsYou[0].ItemName)
 	require.Equal(t, "replace every 90 days", out.NeedsYou[0].Description)
+	require.Equal(t, 0, out.ComingUp[0].DaysRemaining)
+	require.Equal(t, 3, out.ComingUp[1].DaysRemaining)
 	require.Equal(t, []EntityPath{{ID: place.ID, Name: "Garage", Type: EntityPathTypeLocation}}, out.NeedsYou[0].LocationPath)
 	require.Equal(t, []string{"overdue", "overdue", "warranty", "warranty", "warranty", "missing_photo", "missing_photo"}, func() []string {
 		kinds := []string{}
@@ -114,6 +118,10 @@ func TestCareQueue(t *testing.T) {
 		require.NotEqual(t, foreign.ID, row.ItemID)
 		require.NotEqual(t, archived.ID, row.ItemID)
 		require.NotEqual(t, place.ID, row.ItemID)
+		require.NotEmpty(t, row.Name)
+		if row.Kind == "warranty" || row.Kind == "missing_photo" {
+			require.Equal(t, row.ItemName, row.Name)
+		}
 		if row.Kind == "warranty" && row.ItemID == item.ID {
 			require.Equal(t, 12, row.DaysRemaining)
 			require.Equal(t, 189.0, row.PurchasePrice)

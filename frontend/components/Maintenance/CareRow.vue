@@ -61,17 +61,20 @@
         t("care.warranty_days", { days: row.daysRemaining })
       }}</template>
       <template v-else-if="row.kind === 'missing_photo'">{{ t("care.no_photo") }}</template>
+      <template v-else-if="!row.daysRemaining">{{ t("care.today") }}</template>
       <template v-else>{{ t("care.in_days", { days: row.daysRemaining }) }}</template>
     </p>
     <div class="min-w-0">
-      <h3 class="break-words text-lg font-semibold">{{ row.name }}</h3>
+      <h3 class="break-words text-lg font-semibold">{{ row.name || row.itemName }}</h3>
       <p class="mt-1 break-words text-sm text-muted-foreground">
         <span v-if="row.locationPath.length">{{ row.locationPath.map(place => place.name).join(" / ") }}</span>
         <template v-if="row.kind === 'overdue' || row.kind === 'coming_up'">
-          <span v-if="row.description"> · {{ row.description }}</span>
+          <span v-if="row.description"
+            ><template v-if="row.locationPath.length"> · </template>{{ row.description }}</span
+          >
         </template>
         <template v-else>
-          · <Currency :amount="row.purchasePrice" />
+          <template v-if="row.locationPath.length"> · </template><Currency :amount="row.purchasePrice" />
           <template v-if="row.kind === 'warranty'">
             · {{ t("care.ends") }} <DateTime :date="row.warrantyExpires" format="human" datetime-type="date" />
           </template>

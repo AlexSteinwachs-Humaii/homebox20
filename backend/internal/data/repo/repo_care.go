@@ -87,9 +87,12 @@ func (r *CareRepository) getAt(ctx context.Context, gid uuid.UUID, now time.Time
 		if row.ScheduledDate.Time().Before(today) {
 			row.Kind = "overdue"
 			row.DaysLate = int(today.Sub(row.ScheduledDate.Time()).Hours() / 24)
-			out.NeedsYou = append(out.NeedsYou, row)
+			out.NeedsYou = append(out.NeedsYou, titled(row))
 		} else {
-			out.ComingUp = append(out.ComingUp, row)
+			// Coming up is not late, but the eyebrow still needs a real interval.
+			// Zero here used to mean "unset", so every future row read as today.
+			row.DaysRemaining = int(row.ScheduledDate.Time().Sub(today).Hours() / 24)
+			out.ComingUp = append(out.ComingUp, titled(row))
 		}
 	}
 	warranties, err := r.db.Entity.Query().Where(activeItems...).Where(
@@ -105,7 +108,7 @@ func (r *CareRepository) getAt(ctx context.Context, gid uuid.UUID, now time.Time
 		}
 		row.WarrantyExpires = types.DateFromDBTime(item.WarrantyExpires)
 		row.DaysRemaining = int(row.WarrantyExpires.Time().Sub(today).Hours() / 24)
-		out.NeedsYou = append(out.NeedsYou, row)
+		out.NeedsYou = append(out.NeedsYou, titled(row))
 	}
 	missingPhotos, err := r.db.Entity.Query().Where(activeItems...).Where(withoutPrimaryPhoto()).Order(entity.ByName(), entity.ByID()).All(ctx)
 	if err != nil {
@@ -116,10 +119,20 @@ func (r *CareRepository) getAt(ctx context.Context, gid uuid.UUID, now time.Time
 		if err != nil {
 			return out, err
 		}
-		out.NeedsYou = append(out.NeedsYou, row)
+		out.NeedsYou = append(out.NeedsYou, titled(row))
 	}
 	out.Count = len(out.NeedsYou)
 	return out, nil
+}
+
+// titled fills the display name for rows that are not a maintenance entry.
+// Warranty and missing-photo rows otherwise serialize name as "", and Care
+// (and Today, which reads this same payload) would render a blank title.
+func titled(row CareRow) CareRow {
+	if row.Name == "" {
+		row.Name = row.ItemName
+	}
+	return row
 }
 
 // Walk only group-owned ancestors, with the same depth guard as entity helpers.
