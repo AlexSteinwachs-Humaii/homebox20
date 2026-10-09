@@ -56,6 +56,16 @@ const manifestFile = "manifest.json"
 // attachmentsDir is the prefix inside the zip for attachment blobs.
 const attachmentsDir = "attachments/"
 
+// Retained evidence is independent of active attachment IDs and storage paths.
+const retainedEvidenceDir = "disposition_attachments/"
+
+// Export-only additions: restore/remapping support is a separate delivery.
+// Ownership is derived directly from dispositions, never from removed entities.
+var dispositionExportTables = []tableSpec{
+	{name: "dispositions", scope: "group_id = ?", pkCol: "id", groupCols: []string{"group_id"}},
+	{name: "disposition_attachments", scope: "disposition_id IN (SELECT id FROM dispositions WHERE group_id = ?)", pkCol: "id", fkCols: map[string]string{"disposition_id": "dispositions"}},
+}
+
 // tableSpec describes how to extract one table's rows scoped to a group, and
 // how to handle foreign keys on import.
 //
@@ -391,13 +401,18 @@ func (s *ExportService) buildArtifact(ctx context.Context, exportID, gid uuid.UU
 
 	counts := make(map[string]int)
 	dbSql := s.db.Sql()
-	for i, spec := range exportTables {
+	tables := append(append([]tableSpec{}, exportTables...), dispositionExportTables...)
+	var retainedRows []map[string]any
+	for i, spec := range tables {
 		rows, err := dumpTable(ctx, dbSql, s.dialect, spec, gid)
 		if err != nil {
 			_ = zw.Close()
 			return "", 0, fmt.Errorf("dump %s: %w", spec.name, err)
 		}
 		counts[spec.name] = len(rows)
+		if spec.name == "disposition_attachments" {
+			retainedRows = rows
+		}
 
 		w, err := zw.Create(spec.name + ".json")
 		if err != nil {
@@ -412,7 +427,7 @@ func (s *ExportService) buildArtifact(ctx context.Context, exportID, gid uuid.UU
 
 		// Coarse-grained progress: 0..80% spans the table dumps, 80..95% the
 		// attachment copies, 95..100% the upload.
-		pct := int(float64(i+1) / float64(len(exportTables)) * 80)
+		pct := int(float64(i+1) / float64(len(tables)) * 80)
 		_ = s.repos.Exports.SetProgress(ctx, gid, exportID, pct)
 	}
 
@@ -421,6 +436,11 @@ func (s *ExportService) buildArtifact(ctx context.Context, exportID, gid uuid.UU
 		_ = zw.Close()
 		return "", 0, fmt.Errorf("copy attachments: %w", err)
 	}
+	if err := s.copyRetainedEvidence(ctx, zw, gid, retainedRows); err != nil {
+		_ = zw.Close()
+		return "", 0, fmt.Errorf("copy retained evidence: %w", err)
+	}
+	counts["retained_evidence_files"] = len(retainedRows)
 	_ = s.repos.Exports.SetProgress(ctx, gid, exportID, 95)
 
 	// Manifest last so we know the counts.
@@ -544,6 +564,46 @@ func (s *ExportService) copyAttachmentBlobs(ctx context.Context, zw *zip.Writer,
 			return err
 		}
 		_ = r.Close()
+	}
+	return nil
+}
+
+// copyRetainedEvidence uses the exact rows written to the archive. Unlike
+// optional active thumbnails, every retained file is required for a complete
+// backup: missing/unreadable bytes abort before the artifact is uploaded.
+func (s *ExportService) copyRetainedEvidence(ctx context.Context, zw *zip.Writer, gid uuid.UUID, rows []map[string]any) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	bucket, err := blob.OpenBucket(ctx, s.repos.Attachments.GetConnString())
+	if err != nil {
+		return err
+	}
+	defer func() { _ = bucket.Close() }()
+	for _, row := range rows {
+		id, _ := row["id"].(string)
+		key, _ := row["path"].(string)
+		prefix := gid.String() + "/dispositions/"
+		if _, err := uuid.Parse(id); err != nil || !strings.HasPrefix(key, prefix) || key == prefix || path.Clean(key) != key || strings.ContainsAny(key, "\\\x00") {
+			return fmt.Errorf("retained evidence %s has an invalid collection-owned path or ID", id)
+		}
+		r, err := bucket.NewReader(ctx, s.repos.Attachments.GetFullPath(key), nil)
+		if err != nil {
+			return fmt.Errorf("required retained evidence %s is missing or unreadable: %w", id, err)
+		}
+		w, err := zw.Create(retainedEvidenceDir + id)
+		if err != nil {
+			_ = r.Close()
+			return err
+		}
+		_, copyErr := io.Copy(w, r)
+		closeErr := r.Close()
+		if copyErr != nil {
+			return fmt.Errorf("read required retained evidence %s: %w", id, copyErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("close required retained evidence %s: %w", id, closeErr)
+		}
 	}
 	return nil
 }
