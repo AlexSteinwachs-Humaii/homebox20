@@ -768,6 +768,27 @@
         "total_cost": "Total Cost",
         "total_entries": "Total Entries"
     },
+    "care": {
+        "title": "Care",
+        "subtitle": "What the house needs, not a calendar",
+        "count": "{count, plural, one {# thing needs you} other {# things need you}}",
+        "needs_you": "Needs you",
+        "coming_up": "Coming up",
+        "overdue_days": "Overdue · {days} days late",
+        "warranty_days": "Warranty · {days} days left",
+        "no_photo": "No photo",
+        "in_days": "In {days} days",
+        "ends": "ends",
+        "mark_done": "Mark done",
+        "see_item": "See the item",
+        "add_photo": "Add a photo",
+        "snooze": "Snooze",
+        "empty": "Nothing needs you right now.",
+        "footer": "Done this month stays off this list.",
+        "load_failed": "Care could not be loaded. Try again.",
+        "retry": "Try again",
+        "actions_pending": "Available when Care actions are enabled"
+    },
     "menu": {
         "tonight": "Tonight",
         "organize": "Organize",
