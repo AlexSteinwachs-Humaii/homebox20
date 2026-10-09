@@ -1,11 +1,13 @@
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
+  import MdiDownload from "~icons/mdi/download";
   import { statCardData } from "./statistics";
   import { itemsTable } from "./table";
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
   import BaseContainer from "@/components/Base/Container.vue";
   import BaseCard from "@/components/Base/Card.vue";
+  import { Button } from "@/components/ui/button";
   import Subtitle from "~/components/global/Subtitle.vue";
   import StatCard from "~/components/global/StatCard/StatCard.vue";
   import ItemCard from "~/components/Item/Card.vue";
@@ -23,7 +25,13 @@
   });
 
   const api = useUserApi();
+  const prefs = useViewPreferences();
   const breakpoints = useBreakpoints();
+
+  const getExportCSV = () => {
+    const url = api.items.exportURL(prefs.value.collectionId ?? undefined);
+    window.open(url, "_blank");
+  };
 
   const locationStore = useLocationStore();
   const locations = computed(() => locationStore.parentLocations);
@@ -54,6 +62,12 @@
         </BaseCard>
         <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <ItemCard v-for="item in itemTable.items" :key="item.id" :item="item" />
+        </div>
+        <div class="mt-2 flex justify-end">
+          <Button variant="outline" size="sm" @click="getExportCSV">
+            <MdiDownload class="mr-2 size-4" aria-hidden="true" />
+            {{ $t("home.download_csv") }}
+          </Button>
         </div>
       </section>
 
