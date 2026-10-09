@@ -470,6 +470,29 @@ func HasExportsWith(preds ...predicate.Export) predicate.Group {
 	})
 }
 
+// HasDispositions applies the HasEdge predicate on the "dispositions" edge.
+func HasDispositions() predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DispositionsTable, DispositionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDispositionsWith applies the HasEdge predicate on the "dispositions" edge with a given conditions (other predicates).
+func HasDispositionsWith(preds ...predicate.Disposition) predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := newDispositionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasUserGroups applies the HasEdge predicate on the "user_groups" edge.
 func HasUserGroups() predicate.Group {
 	return predicate.Group(func(s *sql.Selector) {

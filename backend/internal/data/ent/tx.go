@@ -20,6 +20,10 @@ type Tx struct {
 	AuthRoles *AuthRolesClient
 	// AuthTokens is the client for interacting with the AuthTokens builders.
 	AuthTokens *AuthTokensClient
+	// Disposition is the client for interacting with the Disposition builders.
+	Disposition *DispositionClient
+	// DispositionAttachment is the client for interacting with the DispositionAttachment builders.
+	DispositionAttachment *DispositionAttachmentClient
 	// Entity is the client for interacting with the Entity builders.
 	Entity *EntityClient
 	// EntityField is the client for interacting with the EntityField builders.
@@ -183,6 +187,8 @@ func (tx *Tx) init() {
 	tx.Attachment = NewAttachmentClient(tx.config)
 	tx.AuthRoles = NewAuthRolesClient(tx.config)
 	tx.AuthTokens = NewAuthTokensClient(tx.config)
+	tx.Disposition = NewDispositionClient(tx.config)
+	tx.DispositionAttachment = NewDispositionAttachmentClient(tx.config)
 	tx.Entity = NewEntityClient(tx.config)
 	tx.EntityField = NewEntityFieldClient(tx.config)
 	tx.EntityTemplate = NewEntityTemplateClient(tx.config)

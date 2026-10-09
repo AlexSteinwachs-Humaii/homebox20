@@ -16,6 +16,8 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/authroles"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/authtokens"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/dispositionattachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entityfield"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytemplate"
@@ -90,24 +92,26 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			apikey.Table:               apikey.ValidColumn,
-			attachment.Table:           attachment.ValidColumn,
-			authroles.Table:            authroles.ValidColumn,
-			authtokens.Table:           authtokens.ValidColumn,
-			entity.Table:               entity.ValidColumn,
-			entityfield.Table:          entityfield.ValidColumn,
-			entitytemplate.Table:       entitytemplate.ValidColumn,
-			entitytype.Table:           entitytype.ValidColumn,
-			export.Table:               export.ValidColumn,
-			group.Table:                group.ValidColumn,
-			groupinvitationtoken.Table: groupinvitationtoken.ValidColumn,
-			maintenanceentry.Table:     maintenanceentry.ValidColumn,
-			notifier.Table:             notifier.ValidColumn,
-			passwordresettokens.Table:  passwordresettokens.ValidColumn,
-			tag.Table:                  tag.ValidColumn,
-			templatefield.Table:        templatefield.ValidColumn,
-			user.Table:                 user.ValidColumn,
-			usergroup.Table:            usergroup.ValidColumn,
+			apikey.Table:                apikey.ValidColumn,
+			attachment.Table:            attachment.ValidColumn,
+			authroles.Table:             authroles.ValidColumn,
+			authtokens.Table:            authtokens.ValidColumn,
+			disposition.Table:           disposition.ValidColumn,
+			dispositionattachment.Table: dispositionattachment.ValidColumn,
+			entity.Table:                entity.ValidColumn,
+			entityfield.Table:           entityfield.ValidColumn,
+			entitytemplate.Table:        entitytemplate.ValidColumn,
+			entitytype.Table:            entitytype.ValidColumn,
+			export.Table:                export.ValidColumn,
+			group.Table:                 group.ValidColumn,
+			groupinvitationtoken.Table:  groupinvitationtoken.ValidColumn,
+			maintenanceentry.Table:      maintenanceentry.ValidColumn,
+			notifier.Table:              notifier.ValidColumn,
+			passwordresettokens.Table:   passwordresettokens.ValidColumn,
+			tag.Table:                   tag.ValidColumn,
+			templatefield.Table:         templatefield.ValidColumn,
+			user.Table:                  user.ValidColumn,
+			usergroup.Table:             usergroup.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

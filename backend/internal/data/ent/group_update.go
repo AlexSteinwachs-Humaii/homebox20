@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytemplate"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytype"
@@ -191,6 +192,21 @@ func (_u *GroupUpdate) AddExports(v ...*Export) *GroupUpdate {
 	return _u.AddExportIDs(ids...)
 }
 
+// AddDispositionIDs adds the "dispositions" edge to the Disposition entity by IDs.
+func (_u *GroupUpdate) AddDispositionIDs(ids ...uuid.UUID) *GroupUpdate {
+	_u.mutation.AddDispositionIDs(ids...)
+	return _u
+}
+
+// AddDispositions adds the "dispositions" edges to the Disposition entity.
+func (_u *GroupUpdate) AddDispositions(v ...*Disposition) *GroupUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDispositionIDs(ids...)
+}
+
 // Mutation returns the GroupMutation object of the builder.
 func (_u *GroupUpdate) Mutation() *GroupMutation {
 	return _u.mutation
@@ -362,6 +378,27 @@ func (_u *GroupUpdate) RemoveExports(v ...*Export) *GroupUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExportIDs(ids...)
+}
+
+// ClearDispositions clears all "dispositions" edges to the Disposition entity.
+func (_u *GroupUpdate) ClearDispositions() *GroupUpdate {
+	_u.mutation.ClearDispositions()
+	return _u
+}
+
+// RemoveDispositionIDs removes the "dispositions" edge to Disposition entities by IDs.
+func (_u *GroupUpdate) RemoveDispositionIDs(ids ...uuid.UUID) *GroupUpdate {
+	_u.mutation.RemoveDispositionIDs(ids...)
+	return _u
+}
+
+// RemoveDispositions removes "dispositions" edges to Disposition entities.
+func (_u *GroupUpdate) RemoveDispositions(v ...*Disposition) *GroupUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDispositionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -803,6 +840,51 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.DispositionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.DispositionsTable,
+			Columns: []string{group.DispositionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(disposition.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDispositionsIDs(); len(nodes) > 0 && !_u.mutation.DispositionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.DispositionsTable,
+			Columns: []string{group.DispositionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(disposition.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DispositionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.DispositionsTable,
+			Columns: []string{group.DispositionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(disposition.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{group.Label}
@@ -977,6 +1059,21 @@ func (_u *GroupUpdateOne) AddExports(v ...*Export) *GroupUpdateOne {
 	return _u.AddExportIDs(ids...)
 }
 
+// AddDispositionIDs adds the "dispositions" edge to the Disposition entity by IDs.
+func (_u *GroupUpdateOne) AddDispositionIDs(ids ...uuid.UUID) *GroupUpdateOne {
+	_u.mutation.AddDispositionIDs(ids...)
+	return _u
+}
+
+// AddDispositions adds the "dispositions" edges to the Disposition entity.
+func (_u *GroupUpdateOne) AddDispositions(v ...*Disposition) *GroupUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDispositionIDs(ids...)
+}
+
 // Mutation returns the GroupMutation object of the builder.
 func (_u *GroupUpdateOne) Mutation() *GroupMutation {
 	return _u.mutation
@@ -1148,6 +1245,27 @@ func (_u *GroupUpdateOne) RemoveExports(v ...*Export) *GroupUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveExportIDs(ids...)
+}
+
+// ClearDispositions clears all "dispositions" edges to the Disposition entity.
+func (_u *GroupUpdateOne) ClearDispositions() *GroupUpdateOne {
+	_u.mutation.ClearDispositions()
+	return _u
+}
+
+// RemoveDispositionIDs removes the "dispositions" edge to Disposition entities by IDs.
+func (_u *GroupUpdateOne) RemoveDispositionIDs(ids ...uuid.UUID) *GroupUpdateOne {
+	_u.mutation.RemoveDispositionIDs(ids...)
+	return _u
+}
+
+// RemoveDispositions removes "dispositions" edges to Disposition entities.
+func (_u *GroupUpdateOne) RemoveDispositions(v ...*Disposition) *GroupUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDispositionIDs(ids...)
 }
 
 // Where appends a list predicates to the GroupUpdate builder.
@@ -1612,6 +1730,51 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(export.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DispositionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.DispositionsTable,
+			Columns: []string{group.DispositionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(disposition.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDispositionsIDs(); len(nodes) > 0 && !_u.mutation.DispositionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.DispositionsTable,
+			Columns: []string{group.DispositionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(disposition.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DispositionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.DispositionsTable,
+			Columns: []string{group.DispositionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(disposition.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

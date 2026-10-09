@@ -9,6 +9,8 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/apikey"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/authtokens"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/dispositionattachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entityfield"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytemplate"
@@ -126,6 +128,124 @@ func init() {
 	authtokensDescID := authtokensMixinFields0[0].Descriptor()
 	// authtokens.DefaultID holds the default value on creation for the id field.
 	authtokens.DefaultID = authtokensDescID.Default.(func() uuid.UUID)
+	dispositionMixin := schema.Disposition{}.Mixin()
+	dispositionMixinFields0 := dispositionMixin[0].Fields()
+	_ = dispositionMixinFields0
+	dispositionFields := schema.Disposition{}.Fields()
+	_ = dispositionFields
+	// dispositionDescCreatedAt is the schema descriptor for created_at field.
+	dispositionDescCreatedAt := dispositionMixinFields0[1].Descriptor()
+	// disposition.DefaultCreatedAt holds the default value on creation for the created_at field.
+	disposition.DefaultCreatedAt = dispositionDescCreatedAt.Default.(func() time.Time)
+	// dispositionDescUpdatedAt is the schema descriptor for updated_at field.
+	dispositionDescUpdatedAt := dispositionMixinFields0[2].Descriptor()
+	// disposition.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	disposition.DefaultUpdatedAt = dispositionDescUpdatedAt.Default.(func() time.Time)
+	// disposition.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	disposition.UpdateDefaultUpdatedAt = dispositionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// dispositionDescName is the schema descriptor for name field.
+	dispositionDescName := dispositionFields[0].Descriptor()
+	// disposition.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	disposition.NameValidator = func() func(string) error {
+		validators := dispositionDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// dispositionDescSerialNumber is the schema descriptor for serial_number field.
+	dispositionDescSerialNumber := dispositionFields[2].Descriptor()
+	// disposition.DefaultSerialNumber holds the default value on creation for the serial_number field.
+	disposition.DefaultSerialNumber = dispositionDescSerialNumber.Default.(string)
+	// disposition.SerialNumberValidator is a validator for the "serial_number" field. It is called by the builders before save.
+	disposition.SerialNumberValidator = dispositionDescSerialNumber.Validators[0].(func(string) error)
+	// dispositionDescManufacturer is the schema descriptor for manufacturer field.
+	dispositionDescManufacturer := dispositionFields[3].Descriptor()
+	// disposition.DefaultManufacturer holds the default value on creation for the manufacturer field.
+	disposition.DefaultManufacturer = dispositionDescManufacturer.Default.(string)
+	// disposition.ManufacturerValidator is a validator for the "manufacturer" field. It is called by the builders before save.
+	disposition.ManufacturerValidator = dispositionDescManufacturer.Validators[0].(func(string) error)
+	// dispositionDescModelNumber is the schema descriptor for model_number field.
+	dispositionDescModelNumber := dispositionFields[4].Descriptor()
+	// disposition.DefaultModelNumber holds the default value on creation for the model_number field.
+	disposition.DefaultModelNumber = dispositionDescModelNumber.Default.(string)
+	// disposition.ModelNumberValidator is a validator for the "model_number" field. It is called by the builders before save.
+	disposition.ModelNumberValidator = dispositionDescModelNumber.Validators[0].(func(string) error)
+	// dispositionDescPurchasePrice is the schema descriptor for purchase_price field.
+	dispositionDescPurchasePrice := dispositionFields[6].Descriptor()
+	// disposition.DefaultPurchasePrice holds the default value on creation for the purchase_price field.
+	disposition.DefaultPurchasePrice = dispositionDescPurchasePrice.Default.(float64)
+	// dispositionDescPurchaseFrom is the schema descriptor for purchase_from field.
+	dispositionDescPurchaseFrom := dispositionFields[8].Descriptor()
+	// disposition.DefaultPurchaseFrom holds the default value on creation for the purchase_from field.
+	disposition.DefaultPurchaseFrom = dispositionDescPurchaseFrom.Default.(string)
+	// dispositionDescInsured is the schema descriptor for insured field.
+	dispositionDescInsured := dispositionFields[9].Descriptor()
+	// disposition.DefaultInsured holds the default value on creation for the insured field.
+	disposition.DefaultInsured = dispositionDescInsured.Default.(bool)
+	// dispositionDescParentName is the schema descriptor for parent_name field.
+	dispositionDescParentName := dispositionFields[11].Descriptor()
+	// disposition.DefaultParentName holds the default value on creation for the parent_name field.
+	disposition.DefaultParentName = dispositionDescParentName.Default.(string)
+	// disposition.ParentNameValidator is a validator for the "parent_name" field. It is called by the builders before save.
+	disposition.ParentNameValidator = dispositionDescParentName.Validators[0].(func(string) error)
+	// dispositionDescRecorderName is the schema descriptor for recorder_name field.
+	dispositionDescRecorderName := dispositionFields[15].Descriptor()
+	// disposition.RecorderNameValidator is a validator for the "recorder_name" field. It is called by the builders before save.
+	disposition.RecorderNameValidator = dispositionDescRecorderName.Validators[0].(func(string) error)
+	// dispositionDescRecipient is the schema descriptor for recipient field.
+	dispositionDescRecipient := dispositionFields[16].Descriptor()
+	// disposition.DefaultRecipient holds the default value on creation for the recipient field.
+	disposition.DefaultRecipient = dispositionDescRecipient.Default.(string)
+	// dispositionDescNotes is the schema descriptor for notes field.
+	dispositionDescNotes := dispositionFields[18].Descriptor()
+	// disposition.DefaultNotes holds the default value on creation for the notes field.
+	disposition.DefaultNotes = dispositionDescNotes.Default.(string)
+	// disposition.NotesValidator is a validator for the "notes" field. It is called by the builders before save.
+	disposition.NotesValidator = dispositionDescNotes.Validators[0].(func(string) error)
+	// dispositionDescID is the schema descriptor for id field.
+	dispositionDescID := dispositionMixinFields0[0].Descriptor()
+	// disposition.DefaultID holds the default value on creation for the id field.
+	disposition.DefaultID = dispositionDescID.Default.(func() uuid.UUID)
+	dispositionattachmentMixin := schema.DispositionAttachment{}.Mixin()
+	dispositionattachmentMixinFields0 := dispositionattachmentMixin[0].Fields()
+	_ = dispositionattachmentMixinFields0
+	dispositionattachmentFields := schema.DispositionAttachment{}.Fields()
+	_ = dispositionattachmentFields
+	// dispositionattachmentDescCreatedAt is the schema descriptor for created_at field.
+	dispositionattachmentDescCreatedAt := dispositionattachmentMixinFields0[1].Descriptor()
+	// dispositionattachment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	dispositionattachment.DefaultCreatedAt = dispositionattachmentDescCreatedAt.Default.(func() time.Time)
+	// dispositionattachmentDescUpdatedAt is the schema descriptor for updated_at field.
+	dispositionattachmentDescUpdatedAt := dispositionattachmentMixinFields0[2].Descriptor()
+	// dispositionattachment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	dispositionattachment.DefaultUpdatedAt = dispositionattachmentDescUpdatedAt.Default.(func() time.Time)
+	// dispositionattachment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	dispositionattachment.UpdateDefaultUpdatedAt = dispositionattachmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// dispositionattachmentDescTitle is the schema descriptor for title field.
+	dispositionattachmentDescTitle := dispositionattachmentFields[2].Descriptor()
+	// dispositionattachment.DefaultTitle holds the default value on creation for the title field.
+	dispositionattachment.DefaultTitle = dispositionattachmentDescTitle.Default.(string)
+	// dispositionattachmentDescPath is the schema descriptor for path field.
+	dispositionattachmentDescPath := dispositionattachmentFields[3].Descriptor()
+	// dispositionattachment.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	dispositionattachment.PathValidator = dispositionattachmentDescPath.Validators[0].(func(string) error)
+	// dispositionattachmentDescMimeType is the schema descriptor for mime_type field.
+	dispositionattachmentDescMimeType := dispositionattachmentFields[4].Descriptor()
+	// dispositionattachment.DefaultMimeType holds the default value on creation for the mime_type field.
+	dispositionattachment.DefaultMimeType = dispositionattachmentDescMimeType.Default.(string)
+	// dispositionattachmentDescID is the schema descriptor for id field.
+	dispositionattachmentDescID := dispositionattachmentMixinFields0[0].Descriptor()
+	// dispositionattachment.DefaultID holds the default value on creation for the id field.
+	dispositionattachment.DefaultID = dispositionattachmentDescID.Default.(func() uuid.UUID)
 	entityMixin := schema.Entity{}.Mixin()
 	entityMixinFields0 := entityMixin[0].Fields()
 	_ = entityMixinFields0

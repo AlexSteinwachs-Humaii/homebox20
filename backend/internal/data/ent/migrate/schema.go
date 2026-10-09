@@ -129,6 +129,90 @@ var (
 			},
 		},
 	}
+	// DispositionsColumns holds the columns for the "dispositions" table.
+	DispositionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "asset_id", Type: field.TypeInt64},
+		{Name: "serial_number", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "manufacturer", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "model_number", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "quantity", Type: field.TypeFloat64},
+		{Name: "purchase_price", Type: field.TypeFloat64, Default: 0},
+		{Name: "purchase_date", Type: field.TypeTime, Nullable: true},
+		{Name: "purchase_from", Type: field.TypeString, Default: ""},
+		{Name: "insured", Type: field.TypeBool, Default: false},
+		{Name: "is_location", Type: field.TypeBool},
+		{Name: "parent_name", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "disposition", Type: field.TypeEnum, Enums: []string{"sold", "destroyed", "given_away", "donated", "lost_or_stolen"}},
+		{Name: "disposition_date", Type: field.TypeTime},
+		{Name: "recorder_id", Type: field.TypeUUID},
+		{Name: "recorder_name", Type: field.TypeString},
+		{Name: "recipient", Type: field.TypeString, Default: ""},
+		{Name: "value", Type: field.TypeFloat64, Nullable: true},
+		{Name: "notes", Type: field.TypeString, Size: 1000, Default: ""},
+		{Name: "group_id", Type: field.TypeUUID},
+	}
+	// DispositionsTable holds the schema information for the "dispositions" table.
+	DispositionsTable = &schema.Table{
+		Name:       "dispositions",
+		Columns:    DispositionsColumns,
+		PrimaryKey: []*schema.Column{DispositionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "dispositions_groups_dispositions",
+				Columns:    []*schema.Column{DispositionsColumns[22]},
+				RefColumns: []*schema.Column{GroupsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "disposition_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{DispositionsColumns[22]},
+			},
+		},
+	}
+	// DispositionAttachmentsColumns holds the columns for the "disposition_attachments" table.
+	DispositionAttachmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "type", Type: field.TypeEnum, Enums: []string{"photo", "receipt"}},
+		{Name: "title", Type: field.TypeString, Default: ""},
+		{Name: "path", Type: field.TypeString},
+		{Name: "mime_type", Type: field.TypeString, Default: "application/octet-stream"},
+		{Name: "disposition_id", Type: field.TypeUUID},
+	}
+	// DispositionAttachmentsTable holds the schema information for the "disposition_attachments" table.
+	DispositionAttachmentsTable = &schema.Table{
+		Name:       "disposition_attachments",
+		Columns:    DispositionAttachmentsColumns,
+		PrimaryKey: []*schema.Column{DispositionAttachmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "disposition_attachments_dispositions_attachments",
+				Columns:    []*schema.Column{DispositionAttachmentsColumns[7]},
+				RefColumns: []*schema.Column{DispositionsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dispositionattachment_disposition_id",
+				Unique:  false,
+				Columns: []*schema.Column{DispositionAttachmentsColumns[7]},
+			},
+			{
+				Name:    "dispositionattachment_path",
+				Unique:  true,
+				Columns: []*schema.Column{DispositionAttachmentsColumns[5]},
+			},
+		},
+	}
 	// EntitiesColumns holds the columns for the "entities" table.
 	EntitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -661,6 +745,8 @@ var (
 		AttachmentsTable,
 		AuthRolesTable,
 		AuthTokensTable,
+		DispositionsTable,
+		DispositionAttachmentsTable,
 		EntitiesTable,
 		EntityFieldsTable,
 		EntityTemplatesTable,
@@ -685,6 +771,8 @@ func init() {
 	AttachmentsTable.ForeignKeys[1].RefTable = EntitiesTable
 	AuthRolesTable.ForeignKeys[0].RefTable = AuthTokensTable
 	AuthTokensTable.ForeignKeys[0].RefTable = UsersTable
+	DispositionsTable.ForeignKeys[0].RefTable = GroupsTable
+	DispositionAttachmentsTable.ForeignKeys[0].RefTable = DispositionsTable
 	EntitiesTable.ForeignKeys[0].RefTable = EntitiesTable
 	EntitiesTable.ForeignKeys[1].RefTable = EntityTypesTable
 	EntitiesTable.ForeignKeys[2].RefTable = GroupsTable

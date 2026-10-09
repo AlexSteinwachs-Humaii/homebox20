@@ -16,6 +16,8 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/authroles"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/authtokens"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/dispositionattachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entityfield"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytemplate"
@@ -42,24 +44,26 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAPIKey               = "APIKey"
-	TypeAttachment           = "Attachment"
-	TypeAuthRoles            = "AuthRoles"
-	TypeAuthTokens           = "AuthTokens"
-	TypeEntity               = "Entity"
-	TypeEntityField          = "EntityField"
-	TypeEntityTemplate       = "EntityTemplate"
-	TypeEntityType           = "EntityType"
-	TypeExport               = "Export"
-	TypeGroup                = "Group"
-	TypeGroupInvitationToken = "GroupInvitationToken"
-	TypeMaintenanceEntry     = "MaintenanceEntry"
-	TypeNotifier             = "Notifier"
-	TypePasswordResetTokens  = "PasswordResetTokens"
-	TypeTag                  = "Tag"
-	TypeTemplateField        = "TemplateField"
-	TypeUser                 = "User"
-	TypeUserGroup            = "UserGroup"
+	TypeAPIKey                = "APIKey"
+	TypeAttachment            = "Attachment"
+	TypeAuthRoles             = "AuthRoles"
+	TypeAuthTokens            = "AuthTokens"
+	TypeDisposition           = "Disposition"
+	TypeDispositionAttachment = "DispositionAttachment"
+	TypeEntity                = "Entity"
+	TypeEntityField           = "EntityField"
+	TypeEntityTemplate        = "EntityTemplate"
+	TypeEntityType            = "EntityType"
+	TypeExport                = "Export"
+	TypeGroup                 = "Group"
+	TypeGroupInvitationToken  = "GroupInvitationToken"
+	TypeMaintenanceEntry      = "MaintenanceEntry"
+	TypeNotifier              = "Notifier"
+	TypePasswordResetTokens   = "PasswordResetTokens"
+	TypeTag                   = "Tag"
+	TypeTemplateField         = "TemplateField"
+	TypeUser                  = "User"
+	TypeUserGroup             = "UserGroup"
 )
 
 // APIKeyMutation represents an operation that mutates the APIKey nodes in the graph.
@@ -2606,6 +2610,2498 @@ func (m *AuthTokensMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown AuthTokens edge %s", name)
+}
+
+// DispositionMutation represents an operation that mutates the Disposition nodes in the graph.
+type DispositionMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	created_at         *time.Time
+	updated_at         *time.Time
+	name               *string
+	asset_id           *int64
+	addasset_id        *int64
+	serial_number      *string
+	manufacturer       *string
+	model_number       *string
+	quantity           *float64
+	addquantity        *float64
+	purchase_price     *float64
+	addpurchase_price  *float64
+	purchase_date      *time.Time
+	purchase_from      *string
+	insured            *bool
+	is_location        *bool
+	parent_name        *string
+	disposition        *disposition.Disposition
+	disposition_date   *time.Time
+	recorder_id        *uuid.UUID
+	recorder_name      *string
+	recipient          *string
+	value              *float64
+	addvalue           *float64
+	notes              *string
+	clearedFields      map[string]struct{}
+	group              *uuid.UUID
+	clearedgroup       bool
+	attachments        map[uuid.UUID]struct{}
+	removedattachments map[uuid.UUID]struct{}
+	clearedattachments bool
+	done               bool
+	oldValue           func(context.Context) (*Disposition, error)
+	predicates         []predicate.Disposition
+}
+
+var _ ent.Mutation = (*DispositionMutation)(nil)
+
+// dispositionOption allows management of the mutation configuration using functional options.
+type dispositionOption func(*DispositionMutation)
+
+// newDispositionMutation creates new mutation for the Disposition entity.
+func newDispositionMutation(c config, op Op, opts ...dispositionOption) *DispositionMutation {
+	m := &DispositionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDisposition,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDispositionID sets the ID field of the mutation.
+func withDispositionID(id uuid.UUID) dispositionOption {
+	return func(m *DispositionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Disposition
+		)
+		m.oldValue = func(ctx context.Context) (*Disposition, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Disposition.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDisposition sets the old Disposition of the mutation.
+func withDisposition(node *Disposition) dispositionOption {
+	return func(m *DispositionMutation) {
+		m.oldValue = func(context.Context) (*Disposition, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DispositionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DispositionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Disposition entities.
+func (m *DispositionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DispositionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DispositionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Disposition.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DispositionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DispositionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DispositionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DispositionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DispositionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DispositionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *DispositionMutation) SetGroupID(u uuid.UUID) {
+	m.group = &u
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *DispositionMutation) GroupID() (r uuid.UUID, exists bool) {
+	v := m.group
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldGroupID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *DispositionMutation) ResetGroupID() {
+	m.group = nil
+}
+
+// SetName sets the "name" field.
+func (m *DispositionMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *DispositionMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *DispositionMutation) ResetName() {
+	m.name = nil
+}
+
+// SetAssetID sets the "asset_id" field.
+func (m *DispositionMutation) SetAssetID(i int64) {
+	m.asset_id = &i
+	m.addasset_id = nil
+}
+
+// AssetID returns the value of the "asset_id" field in the mutation.
+func (m *DispositionMutation) AssetID() (r int64, exists bool) {
+	v := m.asset_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssetID returns the old "asset_id" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldAssetID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssetID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssetID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssetID: %w", err)
+	}
+	return oldValue.AssetID, nil
+}
+
+// AddAssetID adds i to the "asset_id" field.
+func (m *DispositionMutation) AddAssetID(i int64) {
+	if m.addasset_id != nil {
+		*m.addasset_id += i
+	} else {
+		m.addasset_id = &i
+	}
+}
+
+// AddedAssetID returns the value that was added to the "asset_id" field in this mutation.
+func (m *DispositionMutation) AddedAssetID() (r int64, exists bool) {
+	v := m.addasset_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAssetID resets all changes to the "asset_id" field.
+func (m *DispositionMutation) ResetAssetID() {
+	m.asset_id = nil
+	m.addasset_id = nil
+}
+
+// SetSerialNumber sets the "serial_number" field.
+func (m *DispositionMutation) SetSerialNumber(s string) {
+	m.serial_number = &s
+}
+
+// SerialNumber returns the value of the "serial_number" field in the mutation.
+func (m *DispositionMutation) SerialNumber() (r string, exists bool) {
+	v := m.serial_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSerialNumber returns the old "serial_number" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldSerialNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSerialNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSerialNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSerialNumber: %w", err)
+	}
+	return oldValue.SerialNumber, nil
+}
+
+// ResetSerialNumber resets all changes to the "serial_number" field.
+func (m *DispositionMutation) ResetSerialNumber() {
+	m.serial_number = nil
+}
+
+// SetManufacturer sets the "manufacturer" field.
+func (m *DispositionMutation) SetManufacturer(s string) {
+	m.manufacturer = &s
+}
+
+// Manufacturer returns the value of the "manufacturer" field in the mutation.
+func (m *DispositionMutation) Manufacturer() (r string, exists bool) {
+	v := m.manufacturer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldManufacturer returns the old "manufacturer" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldManufacturer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldManufacturer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldManufacturer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldManufacturer: %w", err)
+	}
+	return oldValue.Manufacturer, nil
+}
+
+// ResetManufacturer resets all changes to the "manufacturer" field.
+func (m *DispositionMutation) ResetManufacturer() {
+	m.manufacturer = nil
+}
+
+// SetModelNumber sets the "model_number" field.
+func (m *DispositionMutation) SetModelNumber(s string) {
+	m.model_number = &s
+}
+
+// ModelNumber returns the value of the "model_number" field in the mutation.
+func (m *DispositionMutation) ModelNumber() (r string, exists bool) {
+	v := m.model_number
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelNumber returns the old "model_number" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldModelNumber(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelNumber is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelNumber requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelNumber: %w", err)
+	}
+	return oldValue.ModelNumber, nil
+}
+
+// ResetModelNumber resets all changes to the "model_number" field.
+func (m *DispositionMutation) ResetModelNumber() {
+	m.model_number = nil
+}
+
+// SetQuantity sets the "quantity" field.
+func (m *DispositionMutation) SetQuantity(f float64) {
+	m.quantity = &f
+	m.addquantity = nil
+}
+
+// Quantity returns the value of the "quantity" field in the mutation.
+func (m *DispositionMutation) Quantity() (r float64, exists bool) {
+	v := m.quantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuantity returns the old "quantity" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldQuantity(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuantity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuantity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuantity: %w", err)
+	}
+	return oldValue.Quantity, nil
+}
+
+// AddQuantity adds f to the "quantity" field.
+func (m *DispositionMutation) AddQuantity(f float64) {
+	if m.addquantity != nil {
+		*m.addquantity += f
+	} else {
+		m.addquantity = &f
+	}
+}
+
+// AddedQuantity returns the value that was added to the "quantity" field in this mutation.
+func (m *DispositionMutation) AddedQuantity() (r float64, exists bool) {
+	v := m.addquantity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuantity resets all changes to the "quantity" field.
+func (m *DispositionMutation) ResetQuantity() {
+	m.quantity = nil
+	m.addquantity = nil
+}
+
+// SetPurchasePrice sets the "purchase_price" field.
+func (m *DispositionMutation) SetPurchasePrice(f float64) {
+	m.purchase_price = &f
+	m.addpurchase_price = nil
+}
+
+// PurchasePrice returns the value of the "purchase_price" field in the mutation.
+func (m *DispositionMutation) PurchasePrice() (r float64, exists bool) {
+	v := m.purchase_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPurchasePrice returns the old "purchase_price" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldPurchasePrice(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPurchasePrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPurchasePrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPurchasePrice: %w", err)
+	}
+	return oldValue.PurchasePrice, nil
+}
+
+// AddPurchasePrice adds f to the "purchase_price" field.
+func (m *DispositionMutation) AddPurchasePrice(f float64) {
+	if m.addpurchase_price != nil {
+		*m.addpurchase_price += f
+	} else {
+		m.addpurchase_price = &f
+	}
+}
+
+// AddedPurchasePrice returns the value that was added to the "purchase_price" field in this mutation.
+func (m *DispositionMutation) AddedPurchasePrice() (r float64, exists bool) {
+	v := m.addpurchase_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPurchasePrice resets all changes to the "purchase_price" field.
+func (m *DispositionMutation) ResetPurchasePrice() {
+	m.purchase_price = nil
+	m.addpurchase_price = nil
+}
+
+// SetPurchaseDate sets the "purchase_date" field.
+func (m *DispositionMutation) SetPurchaseDate(t time.Time) {
+	m.purchase_date = &t
+}
+
+// PurchaseDate returns the value of the "purchase_date" field in the mutation.
+func (m *DispositionMutation) PurchaseDate() (r time.Time, exists bool) {
+	v := m.purchase_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPurchaseDate returns the old "purchase_date" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldPurchaseDate(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPurchaseDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPurchaseDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPurchaseDate: %w", err)
+	}
+	return oldValue.PurchaseDate, nil
+}
+
+// ClearPurchaseDate clears the value of the "purchase_date" field.
+func (m *DispositionMutation) ClearPurchaseDate() {
+	m.purchase_date = nil
+	m.clearedFields[disposition.FieldPurchaseDate] = struct{}{}
+}
+
+// PurchaseDateCleared returns if the "purchase_date" field was cleared in this mutation.
+func (m *DispositionMutation) PurchaseDateCleared() bool {
+	_, ok := m.clearedFields[disposition.FieldPurchaseDate]
+	return ok
+}
+
+// ResetPurchaseDate resets all changes to the "purchase_date" field.
+func (m *DispositionMutation) ResetPurchaseDate() {
+	m.purchase_date = nil
+	delete(m.clearedFields, disposition.FieldPurchaseDate)
+}
+
+// SetPurchaseFrom sets the "purchase_from" field.
+func (m *DispositionMutation) SetPurchaseFrom(s string) {
+	m.purchase_from = &s
+}
+
+// PurchaseFrom returns the value of the "purchase_from" field in the mutation.
+func (m *DispositionMutation) PurchaseFrom() (r string, exists bool) {
+	v := m.purchase_from
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPurchaseFrom returns the old "purchase_from" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldPurchaseFrom(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPurchaseFrom is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPurchaseFrom requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPurchaseFrom: %w", err)
+	}
+	return oldValue.PurchaseFrom, nil
+}
+
+// ResetPurchaseFrom resets all changes to the "purchase_from" field.
+func (m *DispositionMutation) ResetPurchaseFrom() {
+	m.purchase_from = nil
+}
+
+// SetInsured sets the "insured" field.
+func (m *DispositionMutation) SetInsured(b bool) {
+	m.insured = &b
+}
+
+// Insured returns the value of the "insured" field in the mutation.
+func (m *DispositionMutation) Insured() (r bool, exists bool) {
+	v := m.insured
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInsured returns the old "insured" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldInsured(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInsured is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInsured requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInsured: %w", err)
+	}
+	return oldValue.Insured, nil
+}
+
+// ResetInsured resets all changes to the "insured" field.
+func (m *DispositionMutation) ResetInsured() {
+	m.insured = nil
+}
+
+// SetIsLocation sets the "is_location" field.
+func (m *DispositionMutation) SetIsLocation(b bool) {
+	m.is_location = &b
+}
+
+// IsLocation returns the value of the "is_location" field in the mutation.
+func (m *DispositionMutation) IsLocation() (r bool, exists bool) {
+	v := m.is_location
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsLocation returns the old "is_location" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldIsLocation(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsLocation is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsLocation requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsLocation: %w", err)
+	}
+	return oldValue.IsLocation, nil
+}
+
+// ResetIsLocation resets all changes to the "is_location" field.
+func (m *DispositionMutation) ResetIsLocation() {
+	m.is_location = nil
+}
+
+// SetParentName sets the "parent_name" field.
+func (m *DispositionMutation) SetParentName(s string) {
+	m.parent_name = &s
+}
+
+// ParentName returns the value of the "parent_name" field in the mutation.
+func (m *DispositionMutation) ParentName() (r string, exists bool) {
+	v := m.parent_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldParentName returns the old "parent_name" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldParentName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldParentName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldParentName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldParentName: %w", err)
+	}
+	return oldValue.ParentName, nil
+}
+
+// ResetParentName resets all changes to the "parent_name" field.
+func (m *DispositionMutation) ResetParentName() {
+	m.parent_name = nil
+}
+
+// SetDisposition sets the "disposition" field.
+func (m *DispositionMutation) SetDisposition(d disposition.Disposition) {
+	m.disposition = &d
+}
+
+// Disposition returns the value of the "disposition" field in the mutation.
+func (m *DispositionMutation) Disposition() (r disposition.Disposition, exists bool) {
+	v := m.disposition
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisposition returns the old "disposition" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldDisposition(ctx context.Context) (v disposition.Disposition, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisposition is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisposition requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisposition: %w", err)
+	}
+	return oldValue.Disposition, nil
+}
+
+// ResetDisposition resets all changes to the "disposition" field.
+func (m *DispositionMutation) ResetDisposition() {
+	m.disposition = nil
+}
+
+// SetDispositionDate sets the "disposition_date" field.
+func (m *DispositionMutation) SetDispositionDate(t time.Time) {
+	m.disposition_date = &t
+}
+
+// DispositionDate returns the value of the "disposition_date" field in the mutation.
+func (m *DispositionMutation) DispositionDate() (r time.Time, exists bool) {
+	v := m.disposition_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDispositionDate returns the old "disposition_date" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldDispositionDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDispositionDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDispositionDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDispositionDate: %w", err)
+	}
+	return oldValue.DispositionDate, nil
+}
+
+// ResetDispositionDate resets all changes to the "disposition_date" field.
+func (m *DispositionMutation) ResetDispositionDate() {
+	m.disposition_date = nil
+}
+
+// SetRecorderID sets the "recorder_id" field.
+func (m *DispositionMutation) SetRecorderID(u uuid.UUID) {
+	m.recorder_id = &u
+}
+
+// RecorderID returns the value of the "recorder_id" field in the mutation.
+func (m *DispositionMutation) RecorderID() (r uuid.UUID, exists bool) {
+	v := m.recorder_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecorderID returns the old "recorder_id" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldRecorderID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecorderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecorderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecorderID: %w", err)
+	}
+	return oldValue.RecorderID, nil
+}
+
+// ResetRecorderID resets all changes to the "recorder_id" field.
+func (m *DispositionMutation) ResetRecorderID() {
+	m.recorder_id = nil
+}
+
+// SetRecorderName sets the "recorder_name" field.
+func (m *DispositionMutation) SetRecorderName(s string) {
+	m.recorder_name = &s
+}
+
+// RecorderName returns the value of the "recorder_name" field in the mutation.
+func (m *DispositionMutation) RecorderName() (r string, exists bool) {
+	v := m.recorder_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecorderName returns the old "recorder_name" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldRecorderName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecorderName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecorderName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecorderName: %w", err)
+	}
+	return oldValue.RecorderName, nil
+}
+
+// ResetRecorderName resets all changes to the "recorder_name" field.
+func (m *DispositionMutation) ResetRecorderName() {
+	m.recorder_name = nil
+}
+
+// SetRecipient sets the "recipient" field.
+func (m *DispositionMutation) SetRecipient(s string) {
+	m.recipient = &s
+}
+
+// Recipient returns the value of the "recipient" field in the mutation.
+func (m *DispositionMutation) Recipient() (r string, exists bool) {
+	v := m.recipient
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecipient returns the old "recipient" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldRecipient(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecipient is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecipient requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecipient: %w", err)
+	}
+	return oldValue.Recipient, nil
+}
+
+// ResetRecipient resets all changes to the "recipient" field.
+func (m *DispositionMutation) ResetRecipient() {
+	m.recipient = nil
+}
+
+// SetValue sets the "value" field.
+func (m *DispositionMutation) SetValue(f float64) {
+	m.value = &f
+	m.addvalue = nil
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *DispositionMutation) Value() (r float64, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldValue(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// AddValue adds f to the "value" field.
+func (m *DispositionMutation) AddValue(f float64) {
+	if m.addvalue != nil {
+		*m.addvalue += f
+	} else {
+		m.addvalue = &f
+	}
+}
+
+// AddedValue returns the value that was added to the "value" field in this mutation.
+func (m *DispositionMutation) AddedValue() (r float64, exists bool) {
+	v := m.addvalue
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearValue clears the value of the "value" field.
+func (m *DispositionMutation) ClearValue() {
+	m.value = nil
+	m.addvalue = nil
+	m.clearedFields[disposition.FieldValue] = struct{}{}
+}
+
+// ValueCleared returns if the "value" field was cleared in this mutation.
+func (m *DispositionMutation) ValueCleared() bool {
+	_, ok := m.clearedFields[disposition.FieldValue]
+	return ok
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *DispositionMutation) ResetValue() {
+	m.value = nil
+	m.addvalue = nil
+	delete(m.clearedFields, disposition.FieldValue)
+}
+
+// SetNotes sets the "notes" field.
+func (m *DispositionMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *DispositionMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the Disposition entity.
+// If the Disposition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionMutation) OldNotes(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *DispositionMutation) ResetNotes() {
+	m.notes = nil
+}
+
+// ClearGroup clears the "group" edge to the Group entity.
+func (m *DispositionMutation) ClearGroup() {
+	m.clearedgroup = true
+	m.clearedFields[disposition.FieldGroupID] = struct{}{}
+}
+
+// GroupCleared reports if the "group" edge to the Group entity was cleared.
+func (m *DispositionMutation) GroupCleared() bool {
+	return m.clearedgroup
+}
+
+// GroupIDs returns the "group" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GroupID instead. It exists only for internal usage by the builders.
+func (m *DispositionMutation) GroupIDs() (ids []uuid.UUID) {
+	if id := m.group; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGroup resets all changes to the "group" edge.
+func (m *DispositionMutation) ResetGroup() {
+	m.group = nil
+	m.clearedgroup = false
+}
+
+// AddAttachmentIDs adds the "attachments" edge to the DispositionAttachment entity by ids.
+func (m *DispositionMutation) AddAttachmentIDs(ids ...uuid.UUID) {
+	if m.attachments == nil {
+		m.attachments = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.attachments[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAttachments clears the "attachments" edge to the DispositionAttachment entity.
+func (m *DispositionMutation) ClearAttachments() {
+	m.clearedattachments = true
+}
+
+// AttachmentsCleared reports if the "attachments" edge to the DispositionAttachment entity was cleared.
+func (m *DispositionMutation) AttachmentsCleared() bool {
+	return m.clearedattachments
+}
+
+// RemoveAttachmentIDs removes the "attachments" edge to the DispositionAttachment entity by IDs.
+func (m *DispositionMutation) RemoveAttachmentIDs(ids ...uuid.UUID) {
+	if m.removedattachments == nil {
+		m.removedattachments = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.attachments, ids[i])
+		m.removedattachments[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAttachments returns the removed IDs of the "attachments" edge to the DispositionAttachment entity.
+func (m *DispositionMutation) RemovedAttachmentsIDs() (ids []uuid.UUID) {
+	for id := range m.removedattachments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AttachmentsIDs returns the "attachments" edge IDs in the mutation.
+func (m *DispositionMutation) AttachmentsIDs() (ids []uuid.UUID) {
+	for id := range m.attachments {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAttachments resets all changes to the "attachments" edge.
+func (m *DispositionMutation) ResetAttachments() {
+	m.attachments = nil
+	m.clearedattachments = false
+	m.removedattachments = nil
+}
+
+// Where appends a list predicates to the DispositionMutation builder.
+func (m *DispositionMutation) Where(ps ...predicate.Disposition) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DispositionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DispositionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Disposition, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DispositionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DispositionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Disposition).
+func (m *DispositionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DispositionMutation) Fields() []string {
+	fields := make([]string, 0, 22)
+	if m.created_at != nil {
+		fields = append(fields, disposition.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, disposition.FieldUpdatedAt)
+	}
+	if m.group != nil {
+		fields = append(fields, disposition.FieldGroupID)
+	}
+	if m.name != nil {
+		fields = append(fields, disposition.FieldName)
+	}
+	if m.asset_id != nil {
+		fields = append(fields, disposition.FieldAssetID)
+	}
+	if m.serial_number != nil {
+		fields = append(fields, disposition.FieldSerialNumber)
+	}
+	if m.manufacturer != nil {
+		fields = append(fields, disposition.FieldManufacturer)
+	}
+	if m.model_number != nil {
+		fields = append(fields, disposition.FieldModelNumber)
+	}
+	if m.quantity != nil {
+		fields = append(fields, disposition.FieldQuantity)
+	}
+	if m.purchase_price != nil {
+		fields = append(fields, disposition.FieldPurchasePrice)
+	}
+	if m.purchase_date != nil {
+		fields = append(fields, disposition.FieldPurchaseDate)
+	}
+	if m.purchase_from != nil {
+		fields = append(fields, disposition.FieldPurchaseFrom)
+	}
+	if m.insured != nil {
+		fields = append(fields, disposition.FieldInsured)
+	}
+	if m.is_location != nil {
+		fields = append(fields, disposition.FieldIsLocation)
+	}
+	if m.parent_name != nil {
+		fields = append(fields, disposition.FieldParentName)
+	}
+	if m.disposition != nil {
+		fields = append(fields, disposition.FieldDisposition)
+	}
+	if m.disposition_date != nil {
+		fields = append(fields, disposition.FieldDispositionDate)
+	}
+	if m.recorder_id != nil {
+		fields = append(fields, disposition.FieldRecorderID)
+	}
+	if m.recorder_name != nil {
+		fields = append(fields, disposition.FieldRecorderName)
+	}
+	if m.recipient != nil {
+		fields = append(fields, disposition.FieldRecipient)
+	}
+	if m.value != nil {
+		fields = append(fields, disposition.FieldValue)
+	}
+	if m.notes != nil {
+		fields = append(fields, disposition.FieldNotes)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DispositionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case disposition.FieldCreatedAt:
+		return m.CreatedAt()
+	case disposition.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case disposition.FieldGroupID:
+		return m.GroupID()
+	case disposition.FieldName:
+		return m.Name()
+	case disposition.FieldAssetID:
+		return m.AssetID()
+	case disposition.FieldSerialNumber:
+		return m.SerialNumber()
+	case disposition.FieldManufacturer:
+		return m.Manufacturer()
+	case disposition.FieldModelNumber:
+		return m.ModelNumber()
+	case disposition.FieldQuantity:
+		return m.Quantity()
+	case disposition.FieldPurchasePrice:
+		return m.PurchasePrice()
+	case disposition.FieldPurchaseDate:
+		return m.PurchaseDate()
+	case disposition.FieldPurchaseFrom:
+		return m.PurchaseFrom()
+	case disposition.FieldInsured:
+		return m.Insured()
+	case disposition.FieldIsLocation:
+		return m.IsLocation()
+	case disposition.FieldParentName:
+		return m.ParentName()
+	case disposition.FieldDisposition:
+		return m.Disposition()
+	case disposition.FieldDispositionDate:
+		return m.DispositionDate()
+	case disposition.FieldRecorderID:
+		return m.RecorderID()
+	case disposition.FieldRecorderName:
+		return m.RecorderName()
+	case disposition.FieldRecipient:
+		return m.Recipient()
+	case disposition.FieldValue:
+		return m.Value()
+	case disposition.FieldNotes:
+		return m.Notes()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DispositionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case disposition.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case disposition.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case disposition.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case disposition.FieldName:
+		return m.OldName(ctx)
+	case disposition.FieldAssetID:
+		return m.OldAssetID(ctx)
+	case disposition.FieldSerialNumber:
+		return m.OldSerialNumber(ctx)
+	case disposition.FieldManufacturer:
+		return m.OldManufacturer(ctx)
+	case disposition.FieldModelNumber:
+		return m.OldModelNumber(ctx)
+	case disposition.FieldQuantity:
+		return m.OldQuantity(ctx)
+	case disposition.FieldPurchasePrice:
+		return m.OldPurchasePrice(ctx)
+	case disposition.FieldPurchaseDate:
+		return m.OldPurchaseDate(ctx)
+	case disposition.FieldPurchaseFrom:
+		return m.OldPurchaseFrom(ctx)
+	case disposition.FieldInsured:
+		return m.OldInsured(ctx)
+	case disposition.FieldIsLocation:
+		return m.OldIsLocation(ctx)
+	case disposition.FieldParentName:
+		return m.OldParentName(ctx)
+	case disposition.FieldDisposition:
+		return m.OldDisposition(ctx)
+	case disposition.FieldDispositionDate:
+		return m.OldDispositionDate(ctx)
+	case disposition.FieldRecorderID:
+		return m.OldRecorderID(ctx)
+	case disposition.FieldRecorderName:
+		return m.OldRecorderName(ctx)
+	case disposition.FieldRecipient:
+		return m.OldRecipient(ctx)
+	case disposition.FieldValue:
+		return m.OldValue(ctx)
+	case disposition.FieldNotes:
+		return m.OldNotes(ctx)
+	}
+	return nil, fmt.Errorf("unknown Disposition field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DispositionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case disposition.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case disposition.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case disposition.FieldGroupID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case disposition.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case disposition.FieldAssetID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssetID(v)
+		return nil
+	case disposition.FieldSerialNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSerialNumber(v)
+		return nil
+	case disposition.FieldManufacturer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetManufacturer(v)
+		return nil
+	case disposition.FieldModelNumber:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelNumber(v)
+		return nil
+	case disposition.FieldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuantity(v)
+		return nil
+	case disposition.FieldPurchasePrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPurchasePrice(v)
+		return nil
+	case disposition.FieldPurchaseDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPurchaseDate(v)
+		return nil
+	case disposition.FieldPurchaseFrom:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPurchaseFrom(v)
+		return nil
+	case disposition.FieldInsured:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInsured(v)
+		return nil
+	case disposition.FieldIsLocation:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsLocation(v)
+		return nil
+	case disposition.FieldParentName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetParentName(v)
+		return nil
+	case disposition.FieldDisposition:
+		v, ok := value.(disposition.Disposition)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisposition(v)
+		return nil
+	case disposition.FieldDispositionDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDispositionDate(v)
+		return nil
+	case disposition.FieldRecorderID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecorderID(v)
+		return nil
+	case disposition.FieldRecorderName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecorderName(v)
+		return nil
+	case disposition.FieldRecipient:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecipient(v)
+		return nil
+	case disposition.FieldValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	case disposition.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Disposition field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DispositionMutation) AddedFields() []string {
+	var fields []string
+	if m.addasset_id != nil {
+		fields = append(fields, disposition.FieldAssetID)
+	}
+	if m.addquantity != nil {
+		fields = append(fields, disposition.FieldQuantity)
+	}
+	if m.addpurchase_price != nil {
+		fields = append(fields, disposition.FieldPurchasePrice)
+	}
+	if m.addvalue != nil {
+		fields = append(fields, disposition.FieldValue)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DispositionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case disposition.FieldAssetID:
+		return m.AddedAssetID()
+	case disposition.FieldQuantity:
+		return m.AddedQuantity()
+	case disposition.FieldPurchasePrice:
+		return m.AddedPurchasePrice()
+	case disposition.FieldValue:
+		return m.AddedValue()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DispositionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case disposition.FieldAssetID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAssetID(v)
+		return nil
+	case disposition.FieldQuantity:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuantity(v)
+		return nil
+	case disposition.FieldPurchasePrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPurchasePrice(v)
+		return nil
+	case disposition.FieldValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddValue(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Disposition numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DispositionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(disposition.FieldPurchaseDate) {
+		fields = append(fields, disposition.FieldPurchaseDate)
+	}
+	if m.FieldCleared(disposition.FieldValue) {
+		fields = append(fields, disposition.FieldValue)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DispositionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DispositionMutation) ClearField(name string) error {
+	switch name {
+	case disposition.FieldPurchaseDate:
+		m.ClearPurchaseDate()
+		return nil
+	case disposition.FieldValue:
+		m.ClearValue()
+		return nil
+	}
+	return fmt.Errorf("unknown Disposition nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DispositionMutation) ResetField(name string) error {
+	switch name {
+	case disposition.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case disposition.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case disposition.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case disposition.FieldName:
+		m.ResetName()
+		return nil
+	case disposition.FieldAssetID:
+		m.ResetAssetID()
+		return nil
+	case disposition.FieldSerialNumber:
+		m.ResetSerialNumber()
+		return nil
+	case disposition.FieldManufacturer:
+		m.ResetManufacturer()
+		return nil
+	case disposition.FieldModelNumber:
+		m.ResetModelNumber()
+		return nil
+	case disposition.FieldQuantity:
+		m.ResetQuantity()
+		return nil
+	case disposition.FieldPurchasePrice:
+		m.ResetPurchasePrice()
+		return nil
+	case disposition.FieldPurchaseDate:
+		m.ResetPurchaseDate()
+		return nil
+	case disposition.FieldPurchaseFrom:
+		m.ResetPurchaseFrom()
+		return nil
+	case disposition.FieldInsured:
+		m.ResetInsured()
+		return nil
+	case disposition.FieldIsLocation:
+		m.ResetIsLocation()
+		return nil
+	case disposition.FieldParentName:
+		m.ResetParentName()
+		return nil
+	case disposition.FieldDisposition:
+		m.ResetDisposition()
+		return nil
+	case disposition.FieldDispositionDate:
+		m.ResetDispositionDate()
+		return nil
+	case disposition.FieldRecorderID:
+		m.ResetRecorderID()
+		return nil
+	case disposition.FieldRecorderName:
+		m.ResetRecorderName()
+		return nil
+	case disposition.FieldRecipient:
+		m.ResetRecipient()
+		return nil
+	case disposition.FieldValue:
+		m.ResetValue()
+		return nil
+	case disposition.FieldNotes:
+		m.ResetNotes()
+		return nil
+	}
+	return fmt.Errorf("unknown Disposition field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DispositionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.group != nil {
+		edges = append(edges, disposition.EdgeGroup)
+	}
+	if m.attachments != nil {
+		edges = append(edges, disposition.EdgeAttachments)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DispositionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case disposition.EdgeGroup:
+		if id := m.group; id != nil {
+			return []ent.Value{*id}
+		}
+	case disposition.EdgeAttachments:
+		ids := make([]ent.Value, 0, len(m.attachments))
+		for id := range m.attachments {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DispositionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedattachments != nil {
+		edges = append(edges, disposition.EdgeAttachments)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DispositionMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case disposition.EdgeAttachments:
+		ids := make([]ent.Value, 0, len(m.removedattachments))
+		for id := range m.removedattachments {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DispositionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedgroup {
+		edges = append(edges, disposition.EdgeGroup)
+	}
+	if m.clearedattachments {
+		edges = append(edges, disposition.EdgeAttachments)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DispositionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case disposition.EdgeGroup:
+		return m.clearedgroup
+	case disposition.EdgeAttachments:
+		return m.clearedattachments
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DispositionMutation) ClearEdge(name string) error {
+	switch name {
+	case disposition.EdgeGroup:
+		m.ClearGroup()
+		return nil
+	}
+	return fmt.Errorf("unknown Disposition unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DispositionMutation) ResetEdge(name string) error {
+	switch name {
+	case disposition.EdgeGroup:
+		m.ResetGroup()
+		return nil
+	case disposition.EdgeAttachments:
+		m.ResetAttachments()
+		return nil
+	}
+	return fmt.Errorf("unknown Disposition edge %s", name)
+}
+
+// DispositionAttachmentMutation represents an operation that mutates the DispositionAttachment nodes in the graph.
+type DispositionAttachmentMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *uuid.UUID
+	created_at         *time.Time
+	updated_at         *time.Time
+	_type              *dispositionattachment.Type
+	title              *string
+	_path              *string
+	mime_type          *string
+	clearedFields      map[string]struct{}
+	disposition        *uuid.UUID
+	cleareddisposition bool
+	done               bool
+	oldValue           func(context.Context) (*DispositionAttachment, error)
+	predicates         []predicate.DispositionAttachment
+}
+
+var _ ent.Mutation = (*DispositionAttachmentMutation)(nil)
+
+// dispositionattachmentOption allows management of the mutation configuration using functional options.
+type dispositionattachmentOption func(*DispositionAttachmentMutation)
+
+// newDispositionAttachmentMutation creates new mutation for the DispositionAttachment entity.
+func newDispositionAttachmentMutation(c config, op Op, opts ...dispositionattachmentOption) *DispositionAttachmentMutation {
+	m := &DispositionAttachmentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDispositionAttachment,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDispositionAttachmentID sets the ID field of the mutation.
+func withDispositionAttachmentID(id uuid.UUID) dispositionattachmentOption {
+	return func(m *DispositionAttachmentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DispositionAttachment
+		)
+		m.oldValue = func(ctx context.Context) (*DispositionAttachment, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DispositionAttachment.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDispositionAttachment sets the old DispositionAttachment of the mutation.
+func withDispositionAttachment(node *DispositionAttachment) dispositionattachmentOption {
+	return func(m *DispositionAttachmentMutation) {
+		m.oldValue = func(context.Context) (*DispositionAttachment, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DispositionAttachmentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DispositionAttachmentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of DispositionAttachment entities.
+func (m *DispositionAttachmentMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DispositionAttachmentMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DispositionAttachmentMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DispositionAttachment.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DispositionAttachmentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DispositionAttachmentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DispositionAttachment entity.
+// If the DispositionAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionAttachmentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DispositionAttachmentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DispositionAttachmentMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DispositionAttachmentMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the DispositionAttachment entity.
+// If the DispositionAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionAttachmentMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DispositionAttachmentMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDispositionID sets the "disposition_id" field.
+func (m *DispositionAttachmentMutation) SetDispositionID(u uuid.UUID) {
+	m.disposition = &u
+}
+
+// DispositionID returns the value of the "disposition_id" field in the mutation.
+func (m *DispositionAttachmentMutation) DispositionID() (r uuid.UUID, exists bool) {
+	v := m.disposition
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDispositionID returns the old "disposition_id" field's value of the DispositionAttachment entity.
+// If the DispositionAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionAttachmentMutation) OldDispositionID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDispositionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDispositionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDispositionID: %w", err)
+	}
+	return oldValue.DispositionID, nil
+}
+
+// ResetDispositionID resets all changes to the "disposition_id" field.
+func (m *DispositionAttachmentMutation) ResetDispositionID() {
+	m.disposition = nil
+}
+
+// SetType sets the "type" field.
+func (m *DispositionAttachmentMutation) SetType(d dispositionattachment.Type) {
+	m._type = &d
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *DispositionAttachmentMutation) GetType() (r dispositionattachment.Type, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the DispositionAttachment entity.
+// If the DispositionAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionAttachmentMutation) OldType(ctx context.Context) (v dispositionattachment.Type, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *DispositionAttachmentMutation) ResetType() {
+	m._type = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *DispositionAttachmentMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *DispositionAttachmentMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the DispositionAttachment entity.
+// If the DispositionAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionAttachmentMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *DispositionAttachmentMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetPath sets the "path" field.
+func (m *DispositionAttachmentMutation) SetPath(s string) {
+	m._path = &s
+}
+
+// Path returns the value of the "path" field in the mutation.
+func (m *DispositionAttachmentMutation) Path() (r string, exists bool) {
+	v := m._path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPath returns the old "path" field's value of the DispositionAttachment entity.
+// If the DispositionAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionAttachmentMutation) OldPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPath: %w", err)
+	}
+	return oldValue.Path, nil
+}
+
+// ResetPath resets all changes to the "path" field.
+func (m *DispositionAttachmentMutation) ResetPath() {
+	m._path = nil
+}
+
+// SetMimeType sets the "mime_type" field.
+func (m *DispositionAttachmentMutation) SetMimeType(s string) {
+	m.mime_type = &s
+}
+
+// MimeType returns the value of the "mime_type" field in the mutation.
+func (m *DispositionAttachmentMutation) MimeType() (r string, exists bool) {
+	v := m.mime_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMimeType returns the old "mime_type" field's value of the DispositionAttachment entity.
+// If the DispositionAttachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DispositionAttachmentMutation) OldMimeType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMimeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMimeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMimeType: %w", err)
+	}
+	return oldValue.MimeType, nil
+}
+
+// ResetMimeType resets all changes to the "mime_type" field.
+func (m *DispositionAttachmentMutation) ResetMimeType() {
+	m.mime_type = nil
+}
+
+// ClearDisposition clears the "disposition" edge to the Disposition entity.
+func (m *DispositionAttachmentMutation) ClearDisposition() {
+	m.cleareddisposition = true
+	m.clearedFields[dispositionattachment.FieldDispositionID] = struct{}{}
+}
+
+// DispositionCleared reports if the "disposition" edge to the Disposition entity was cleared.
+func (m *DispositionAttachmentMutation) DispositionCleared() bool {
+	return m.cleareddisposition
+}
+
+// DispositionIDs returns the "disposition" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// DispositionID instead. It exists only for internal usage by the builders.
+func (m *DispositionAttachmentMutation) DispositionIDs() (ids []uuid.UUID) {
+	if id := m.disposition; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetDisposition resets all changes to the "disposition" edge.
+func (m *DispositionAttachmentMutation) ResetDisposition() {
+	m.disposition = nil
+	m.cleareddisposition = false
+}
+
+// Where appends a list predicates to the DispositionAttachmentMutation builder.
+func (m *DispositionAttachmentMutation) Where(ps ...predicate.DispositionAttachment) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DispositionAttachmentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DispositionAttachmentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DispositionAttachment, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DispositionAttachmentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DispositionAttachmentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DispositionAttachment).
+func (m *DispositionAttachmentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DispositionAttachmentMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.created_at != nil {
+		fields = append(fields, dispositionattachment.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, dispositionattachment.FieldUpdatedAt)
+	}
+	if m.disposition != nil {
+		fields = append(fields, dispositionattachment.FieldDispositionID)
+	}
+	if m._type != nil {
+		fields = append(fields, dispositionattachment.FieldType)
+	}
+	if m.title != nil {
+		fields = append(fields, dispositionattachment.FieldTitle)
+	}
+	if m._path != nil {
+		fields = append(fields, dispositionattachment.FieldPath)
+	}
+	if m.mime_type != nil {
+		fields = append(fields, dispositionattachment.FieldMimeType)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DispositionAttachmentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case dispositionattachment.FieldCreatedAt:
+		return m.CreatedAt()
+	case dispositionattachment.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case dispositionattachment.FieldDispositionID:
+		return m.DispositionID()
+	case dispositionattachment.FieldType:
+		return m.GetType()
+	case dispositionattachment.FieldTitle:
+		return m.Title()
+	case dispositionattachment.FieldPath:
+		return m.Path()
+	case dispositionattachment.FieldMimeType:
+		return m.MimeType()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DispositionAttachmentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case dispositionattachment.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case dispositionattachment.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case dispositionattachment.FieldDispositionID:
+		return m.OldDispositionID(ctx)
+	case dispositionattachment.FieldType:
+		return m.OldType(ctx)
+	case dispositionattachment.FieldTitle:
+		return m.OldTitle(ctx)
+	case dispositionattachment.FieldPath:
+		return m.OldPath(ctx)
+	case dispositionattachment.FieldMimeType:
+		return m.OldMimeType(ctx)
+	}
+	return nil, fmt.Errorf("unknown DispositionAttachment field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DispositionAttachmentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case dispositionattachment.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case dispositionattachment.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case dispositionattachment.FieldDispositionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDispositionID(v)
+		return nil
+	case dispositionattachment.FieldType:
+		v, ok := value.(dispositionattachment.Type)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case dispositionattachment.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case dispositionattachment.FieldPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPath(v)
+		return nil
+	case dispositionattachment.FieldMimeType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMimeType(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DispositionAttachment field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DispositionAttachmentMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DispositionAttachmentMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DispositionAttachmentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown DispositionAttachment numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DispositionAttachmentMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DispositionAttachmentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DispositionAttachmentMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown DispositionAttachment nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DispositionAttachmentMutation) ResetField(name string) error {
+	switch name {
+	case dispositionattachment.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case dispositionattachment.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case dispositionattachment.FieldDispositionID:
+		m.ResetDispositionID()
+		return nil
+	case dispositionattachment.FieldType:
+		m.ResetType()
+		return nil
+	case dispositionattachment.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case dispositionattachment.FieldPath:
+		m.ResetPath()
+		return nil
+	case dispositionattachment.FieldMimeType:
+		m.ResetMimeType()
+		return nil
+	}
+	return fmt.Errorf("unknown DispositionAttachment field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DispositionAttachmentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.disposition != nil {
+		edges = append(edges, dispositionattachment.EdgeDisposition)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DispositionAttachmentMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case dispositionattachment.EdgeDisposition:
+		if id := m.disposition; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DispositionAttachmentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DispositionAttachmentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DispositionAttachmentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareddisposition {
+		edges = append(edges, dispositionattachment.EdgeDisposition)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DispositionAttachmentMutation) EdgeCleared(name string) bool {
+	switch name {
+	case dispositionattachment.EdgeDisposition:
+		return m.cleareddisposition
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DispositionAttachmentMutation) ClearEdge(name string) error {
+	switch name {
+	case dispositionattachment.EdgeDisposition:
+		m.ClearDisposition()
+		return nil
+	}
+	return fmt.Errorf("unknown DispositionAttachment unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DispositionAttachmentMutation) ResetEdge(name string) error {
+	switch name {
+	case dispositionattachment.EdgeDisposition:
+		m.ResetDisposition()
+		return nil
+	}
+	return fmt.Errorf("unknown DispositionAttachment edge %s", name)
 }
 
 // EntityMutation represents an operation that mutates the Entity nodes in the graph.
@@ -9529,6 +12025,9 @@ type GroupMutation struct {
 	exports                  map[uuid.UUID]struct{}
 	removedexports           map[uuid.UUID]struct{}
 	clearedexports           bool
+	dispositions             map[uuid.UUID]struct{}
+	removeddispositions      map[uuid.UUID]struct{}
+	cleareddispositions      bool
 	done                     bool
 	oldValue                 func(context.Context) (*Group, error)
 	predicates               []predicate.Group
@@ -10214,6 +12713,60 @@ func (m *GroupMutation) ResetExports() {
 	m.removedexports = nil
 }
 
+// AddDispositionIDs adds the "dispositions" edge to the Disposition entity by ids.
+func (m *GroupMutation) AddDispositionIDs(ids ...uuid.UUID) {
+	if m.dispositions == nil {
+		m.dispositions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.dispositions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDispositions clears the "dispositions" edge to the Disposition entity.
+func (m *GroupMutation) ClearDispositions() {
+	m.cleareddispositions = true
+}
+
+// DispositionsCleared reports if the "dispositions" edge to the Disposition entity was cleared.
+func (m *GroupMutation) DispositionsCleared() bool {
+	return m.cleareddispositions
+}
+
+// RemoveDispositionIDs removes the "dispositions" edge to the Disposition entity by IDs.
+func (m *GroupMutation) RemoveDispositionIDs(ids ...uuid.UUID) {
+	if m.removeddispositions == nil {
+		m.removeddispositions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.dispositions, ids[i])
+		m.removeddispositions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDispositions returns the removed IDs of the "dispositions" edge to the Disposition entity.
+func (m *GroupMutation) RemovedDispositionsIDs() (ids []uuid.UUID) {
+	for id := range m.removeddispositions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DispositionsIDs returns the "dispositions" edge IDs in the mutation.
+func (m *GroupMutation) DispositionsIDs() (ids []uuid.UUID) {
+	for id := range m.dispositions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDispositions resets all changes to the "dispositions" edge.
+func (m *GroupMutation) ResetDispositions() {
+	m.dispositions = nil
+	m.cleareddispositions = false
+	m.removeddispositions = nil
+}
+
 // Where appends a list predicates to the GroupMutation builder.
 func (m *GroupMutation) Where(ps ...predicate.Group) {
 	m.predicates = append(m.predicates, ps...)
@@ -10398,7 +12951,7 @@ func (m *GroupMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *GroupMutation) AddedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.users != nil {
 		edges = append(edges, group.EdgeUsers)
 	}
@@ -10422,6 +12975,9 @@ func (m *GroupMutation) AddedEdges() []string {
 	}
 	if m.exports != nil {
 		edges = append(edges, group.EdgeExports)
+	}
+	if m.dispositions != nil {
+		edges = append(edges, group.EdgeDispositions)
 	}
 	return edges
 }
@@ -10478,13 +13034,19 @@ func (m *GroupMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case group.EdgeDispositions:
+		ids := make([]ent.Value, 0, len(m.dispositions))
+		for id := range m.dispositions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *GroupMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.removedusers != nil {
 		edges = append(edges, group.EdgeUsers)
 	}
@@ -10508,6 +13070,9 @@ func (m *GroupMutation) RemovedEdges() []string {
 	}
 	if m.removedexports != nil {
 		edges = append(edges, group.EdgeExports)
+	}
+	if m.removeddispositions != nil {
+		edges = append(edges, group.EdgeDispositions)
 	}
 	return edges
 }
@@ -10564,13 +13129,19 @@ func (m *GroupMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case group.EdgeDispositions:
+		ids := make([]ent.Value, 0, len(m.removeddispositions))
+		for id := range m.removeddispositions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *GroupMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 8)
+	edges := make([]string, 0, 9)
 	if m.clearedusers {
 		edges = append(edges, group.EdgeUsers)
 	}
@@ -10595,6 +13166,9 @@ func (m *GroupMutation) ClearedEdges() []string {
 	if m.clearedexports {
 		edges = append(edges, group.EdgeExports)
 	}
+	if m.cleareddispositions {
+		edges = append(edges, group.EdgeDispositions)
+	}
 	return edges
 }
 
@@ -10618,6 +13192,8 @@ func (m *GroupMutation) EdgeCleared(name string) bool {
 		return m.clearedentity_templates
 	case group.EdgeExports:
 		return m.clearedexports
+	case group.EdgeDispositions:
+		return m.cleareddispositions
 	}
 	return false
 }
@@ -10657,6 +13233,9 @@ func (m *GroupMutation) ResetEdge(name string) error {
 		return nil
 	case group.EdgeExports:
 		m.ResetExports()
+		return nil
+	case group.EdgeDispositions:
+		m.ResetDispositions()
 		return nil
 	}
 	return fmt.Errorf("unknown Group edge %s", name)
