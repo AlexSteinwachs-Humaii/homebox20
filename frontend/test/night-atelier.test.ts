@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { computed, ref } from "vue";
-import { useNightAtelier } from "../composables/use-night-atelier";
+import { releaseUnmanagedNightAtelier, useNightAtelier } from "../composables/use-night-atelier";
 import { useTheme, useIsThemeInList } from "../composables/use-theme";
 
 const hooks = vi.hoisted(() => ({ beforeMount: [] as (() => void)[], unmount: [] as (() => void)[] }));
@@ -68,8 +68,14 @@ describe("Night Atelier palette", () => {
 
   it("owns the signed-in layout only, not public auth pages or the app root", () => {
     expect(source("layouts/default.vue")).toContain("useNightAtelier();");
-    expect(source("layouts/empty.vue")).not.toContain("useNightAtelier");
+    expect(source("layouts/empty.vue")).not.toContain("useNightAtelier(");
+    expect(source("layouts/empty.vue")).toContain("releaseUnmanagedNightAtelier");
     expect(source("layouts/empty.vue")).toContain("useTheme();");
+    const boot = source("public/set-theme.js");
+    expect(boot).toContain('classList.add("night-atelier")');
+    expect(boot).toContain('path === "/"');
+    expect(boot).toContain('path === "/forgot-password"');
+    expect(boot).toContain('path === "/reset-password"');
     expect(source("app.vue")).not.toMatch(/useTheme|data-theme/);
     for (const page of ["scanner-ar", "reports/label-generator"]) {
       expect(source(`pages/${page}.vue`)).toContain("useNightAtelier();");
@@ -128,7 +134,10 @@ describe("Night Atelier layout lifecycle and saved themes", () => {
     useNightAtelier();
     hooks.beforeMount.forEach(fn => fn());
     expect(classes.has("night-atelier")).toBe(true);
+    expect(classes.has("theme-night")).toBe(false);
     expect(attributes.has("data-theme")).toBe(false);
+    releaseUnmanagedNightAtelier();
+    expect(classes.has("night-atelier")).toBe(true);
     useTheme(); // e.g. the unchanged profile picker
     mounted.forEach(fn => fn());
     expect(themeRead).not.toHaveBeenCalled();

@@ -4,6 +4,19 @@ import { onBeforeMount, onUnmounted } from "vue";
 // the appearance of an incoming standalone authenticated page (or vice versa).
 let owners = 0;
 
+function clearSavedTheme(html: HTMLElement) {
+  html.removeAttribute("data-theme");
+  const saved = Array.from(html.classList).filter(name => name.startsWith("theme-"));
+  if (saved.length > 0) html.classList.remove(...saved);
+}
+
+/** Drop a pre-paint class when no signed-in layout owns it (login, after a redirect). */
+export function releaseUnmanagedNightAtelier() {
+  if (owners === 0) {
+    document.documentElement.classList.remove("night-atelier");
+  }
+}
+
 /** Layout-owned appearance, including dialogs that portal outside the layout. */
 export function useNightAtelier() {
   let active = false;
@@ -11,8 +24,9 @@ export function useNightAtelier() {
   onBeforeMount(() => {
     active = true;
     owners++;
-    document.documentElement.classList.add("night-atelier");
-    document.documentElement.removeAttribute("data-theme");
+    const html = document.documentElement;
+    html.classList.add("night-atelier");
+    clearSavedTheme(html);
   });
   onUnmounted(() => {
     if (!active) return;

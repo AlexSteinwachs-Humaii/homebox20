@@ -12,6 +12,7 @@ import (
 	"github.com/hay-kot/httpkit/server"
 	"github.com/rs/zerolog/log"
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services"
+	"github.com/sysadminsmedia/homebox/backend/internal/core/services/reporting/eventbus"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
 	"github.com/sysadminsmedia/homebox/backend/internal/sys/validate"
@@ -142,6 +143,7 @@ func (ctrl *V1Controller) HandleEntityAttachmentCreate() errchain.HandlerFunc {
 			return validate.NewRequestError(err, http.StatusInternalServerError)
 		}
 
+		ctrl.bus.Publish(eventbus.EventEntityMutation, eventbus.GroupMutationEvent{GID: ctx.GID})
 		return server.JSON(w, http.StatusCreated, item)
 	}
 }
@@ -310,6 +312,7 @@ func (ctrl *V1Controller) handleEntityAttachmentsHandler(w http.ResponseWriter, 
 			return validate.NewRequestError(err, http.StatusInternalServerError)
 		}
 
+		ctrl.bus.Publish(eventbus.EventEntityMutation, eventbus.GroupMutationEvent{GID: ctx.GID})
 		return server.JSON(w, http.StatusNoContent, nil)
 
 	case http.MethodPut:
@@ -335,6 +338,7 @@ func (ctrl *V1Controller) handleEntityAttachmentsHandler(w http.ResponseWriter, 
 			return validate.NewRequestError(err, http.StatusInternalServerError)
 		}
 
+		ctrl.bus.Publish(eventbus.EventEntityMutation, eventbus.GroupMutationEvent{GID: ctx.GID})
 		return server.JSON(w, http.StatusOK, val)
 	}
 

@@ -33,15 +33,30 @@ export function useTheme(): UseTheme {
 
   onMounted(() => {
     htmlEl.value = document.querySelector("html");
+    const startWatching = () => {
+      applyThemeToDom(theme.value);
+      watch(theme, newTheme => {
+        applyThemeToDom(newTheme);
+      });
+    };
     // Night Atelier is a layout appearance, not a saved DaisyUI preference.
-    // Do not read or watch the preference when signed-in consumers mount.
-    if (htmlEl.value?.classList.contains("night-atelier")) {
+    // Do not read or watch the preference while it is on the document. Layouts
+    // can overlap, so wait until the class leaves before restoring login.
+    const el = htmlEl.value;
+    if (el?.classList.contains("night-atelier")) {
+      if (typeof MutationObserver === "function" && el instanceof Element) {
+        const observer = new MutationObserver(() => {
+          if (!el.classList.contains("night-atelier")) {
+            observer.disconnect();
+            startWatching();
+          }
+        });
+        observer.observe(el, { attributes: true, attributeFilter: ["class"] });
+        onUnmounted(() => observer.disconnect());
+      }
       return;
     }
-    applyThemeToDom(theme.value);
-    watch(theme, newTheme => {
-      applyThemeToDom(newTheme);
-    });
+    startWatching();
   });
 
   return { theme, setTheme };

@@ -10,6 +10,7 @@ import (
 	"github.com/hay-kot/httpkit/errchain"
 	"github.com/rs/zerolog/log"
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services"
+	"github.com/sysadminsmedia/homebox/backend/internal/core/services/reporting/eventbus"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
 	"github.com/sysadminsmedia/homebox/backend/internal/sys/validate"
@@ -139,6 +140,7 @@ func (ctrl *V1Controller) HandleEntityAttachmentExternalCreate() errchain.Handle
 			return repo.EntityOut{}, validate.NewRequestError(err, http.StatusInternalServerError)
 		}
 
+		ctrl.bus.Publish(eventbus.EventEntityMutation, eventbus.GroupMutationEvent{GID: ctx.GID})
 		return item, nil
 	}
 
