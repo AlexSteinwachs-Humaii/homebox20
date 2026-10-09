@@ -20,6 +20,7 @@ type AllRepos struct {
 	Tags                *TagRepository
 	Attachments         *AttachmentRepo
 	MaintEntry          *MaintenanceEntryRepository
+	Care                *CareRepository
 	Notifiers           *NotifierRepository
 	Exports             *ExportRepository
 }
@@ -37,7 +38,8 @@ func New(db *ent.Client, bus *eventbus.EventBus, storage config.Storage, pubSubC
 		EntityTemplates:     &EntityTemplatesRepository{db, bus},
 		Tags:                &TagRepository{db, bus},
 		Attachments:         attachments,
-		MaintEntry:          &MaintenanceEntryRepository{db},
+		MaintEntry:          &MaintenanceEntryRepository{db: db, bus: bus},
+		Care:                &CareRepository{db: db},
 		Notifiers:           NewNotifierRepository(db),
 		Exports:             &ExportRepository{db},
 	}

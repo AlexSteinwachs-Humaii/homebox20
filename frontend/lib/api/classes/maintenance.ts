@@ -1,5 +1,6 @@
 import { BaseAPI, route } from "../base";
 import type {
+  CareQueue,
   MaintenanceEntry,
   MaintenanceEntryUpdate,
   MaintenanceEntryWithDetails,
@@ -11,6 +12,11 @@ export interface MaintenanceFilters {
 }
 
 export class MaintenanceAPI extends BaseAPI {
+  /** Canonical group-scoped needs-you and coming-up query. Count is server-owned. */
+  getCare() {
+    return this.http.get<CareQueue>({ url: route("/care") });
+  }
+
   getAll(filters: MaintenanceFilters) {
     return this.http.get<MaintenanceEntryWithDetails[]>({
       url: route(`/maintenance`, { status: filters.status?.toString() }),

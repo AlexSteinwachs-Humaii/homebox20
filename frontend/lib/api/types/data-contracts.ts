@@ -734,6 +734,28 @@ export interface BarcodeProduct {
   search_engine_name: string;
 }
 
+export interface CareQueue {
+  comingUp: CareRow[];
+  count: number;
+  needsYou: CareRow[];
+}
+
+export interface CareRow {
+  daysLate: number;
+  daysRemaining: number;
+  description: string;
+  itemId: string;
+  itemName: string;
+  kind: "overdue" | "warranty" | "missing_photo" | "coming_up";
+  locationPath: EntityPath[];
+  maintenanceId?: string | null;
+  name: string;
+  /** @example "0" */
+  purchasePrice: string;
+  scheduledDate: Date | string;
+  warrantyExpires: Date | string;
+}
+
 export interface DuplicateOptions {
   copyAttachments: boolean;
   copyCustomFields: boolean;

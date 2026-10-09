@@ -37,6 +37,12 @@
                 >
                   <component :is="n.icon" />
                   <span>{{ n.name.value }}</span>
+                  <span
+                    v-if="n.to === '/maintenance' && careCount > 0"
+                    class="ml-auto min-w-5 rounded-full bg-warning px-1.5 text-center text-xs font-semibold tabular-nums text-warning-foreground"
+                    data-testid="care-count"
+                    >{{ careCount }}</span
+                  >
                 </SidebarMenuLink>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -228,6 +234,8 @@
 
   const { t } = useI18n();
   const username = computed(() => authCtx.user?.name || t("menu.profile"));
+
+  const { count: careCount } = useCareCount();
 
   const { selectedCollection } = useCollections();
   const collectionName = computed(() => selectedCollection.value?.name || t("menu.collection"));

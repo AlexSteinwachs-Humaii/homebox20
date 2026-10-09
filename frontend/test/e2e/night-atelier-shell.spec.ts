@@ -24,7 +24,8 @@ test("rail, profile chip, and administration preserve the existing routes", asyn
     ["Tags", "/tags"],
     ["Templates", "/templates"],
   ]) {
-    const link = rail.getByRole("link", { name: label, exact: true });
+    const link = rail.locator(`a[data-sidebar='menu-button'][href='${route}']`);
+    await expect(link).toContainText(label!);
     await expect(link).toHaveAttribute("href", route!);
     await expect(link.locator("svg")).toHaveCount(1);
   }
