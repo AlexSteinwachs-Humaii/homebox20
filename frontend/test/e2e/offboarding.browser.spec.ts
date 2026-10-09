@@ -1,3 +1,4 @@
+import { inflateRawSync } from "node:zlib";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import type { EntityOut, EntityTypeSummary } from "../../lib/api/types/data-contracts";
 
@@ -46,12 +47,132 @@ async function setup(page: Page, request: APIRequestContext, place = false) {
   const root = await create(`Offboarding ${suffix}`, place);
   const child = await create("Nested place", true, root.id);
   const leaf = await create("Nested item", false, child.id);
+  for (const type of ["photo", "receipt", "manual"]) {
+    const upload = await request.post(`/api/v1/entities/${root.id}/attachments`, {
+      multipart: {
+        name: `${type}.txt`,
+        type,
+        primary: type === "photo" ? "true" : "false",
+        file: { name: `${type}.txt`, mimeType: "text/plain", buffer: Buffer.from(`retained-${type}`) },
+      },
+    });
+    expect(upload.ok()).toBe(true);
+  }
   await page.goto("/");
   await page.locator("input[type=text]").first().fill(member);
   await page.locator("input[type=password]").fill(password);
   await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/\/home$/, { timeout: 30000 });
   return { root, child, leaf, create };
+}
+
+// Decode the central directory of the real backend ZIP (no test-only API).
+function zipEntries(data: Buffer): Record<string, Buffer> {
+  const end = data.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  expect(end).toBeGreaterThanOrEqual(0);
+  let offset = data.readUInt32LE(end + 16);
+  const entries: Record<string, Buffer> = {};
+  for (let n = 0; n < data.readUInt16LE(end + 10); n++) {
+    expect(data.readUInt32LE(offset)).toBe(0x02014b50);
+    const method = data.readUInt16LE(offset + 10);
+    const size = data.readUInt32LE(offset + 20);
+    const nameLen = data.readUInt16LE(offset + 28);
+    const local = data.readUInt32LE(offset + 42);
+    const name = data.subarray(offset + 46, offset + 46 + nameLen).toString();
+    const start = local + 30 + data.readUInt16LE(local + 26) + data.readUInt16LE(local + 28);
+    const content = data.subarray(start, start + size);
+    entries[name] = method === 8 ? inflateRawSync(content) : content;
+    offset += 46 + nameLen + data.readUInt16LE(offset + 30) + data.readUInt16LE(offset + 32);
+  }
+  return entries;
+}
+
+async function completedJob(request: APIRequestContext, id: string) {
+  await expect
+    .poll(
+      async () => {
+        const response = await request.get(`/api/v1/group/exports/${id}`);
+        expect(response.ok()).toBe(true);
+        return (await response.json()).status;
+      },
+      { timeout: 30000 }
+    )
+    .toBe("completed");
+}
+
+async function exportZIP(request: APIRequestContext) {
+  const response = await request.post("/api/v1/group/exports");
+  expect(response.status()).toBe(202);
+  const job = await response.json();
+  await completedJob(request, job.id);
+  const download = await request.get(`/api/v1/group/exports/${job.id}/download`);
+  expect(download.ok()).toBe(true);
+  return { id: job.id, data: await download.body() };
+}
+
+async function validateHistoryRestore(request: APIRequestContext, disposition: string, notes: string) {
+  const source = await exportZIP(request);
+  const entries = zipEntries(source.data);
+  const records = JSON.parse(entries["dispositions.json"].toString());
+  expect(records).toHaveLength(3);
+  for (const row of records) expect(row).toMatchObject({ disposition, notes, recorder_name: "Member", quantity: 2.5 });
+  expect(records.some((row: { is_location: boolean | number }) => !!row.is_location)).toBe(true);
+  expect(
+    JSON.parse(entries["entities.json"].toString()).some((row: { name: string }) => row.name === "Nested item")
+  ).toBe(false);
+  const retained = JSON.parse(entries["disposition_attachments.json"].toString());
+  expect(retained).toHaveLength(2);
+  for (const file of retained) {
+    expect(entries[`disposition_attachments/${file.id}`].toString()).toBe(`retained-${file.type}`);
+  }
+  const email = `restore-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+  const password = "Offboarding-restore-test-42!";
+  expect((await request.post("/api/v1/users/register", { data: { email, name: "Importer", password } })).status()).toBe(
+    204
+  );
+  expect((await request.post("/api/v1/users/login", { data: { username: email, password } })).ok()).toBe(true);
+  // A different collection cannot see the source job or its retained bytes.
+  expect((await request.get(`/api/v1/group/exports/${source.id}/download`)).status()).toBe(404);
+  const imported = await request.post("/api/v1/group/import", {
+    multipart: {
+      file: { name: "history.zip", mimeType: "application/zip", buffer: source.data },
+    },
+  });
+  expect(imported.status()).toBe(202);
+  await completedJob(request, (await imported.json()).id);
+  const restored = zipEntries((await exportZIP(request)).data);
+  const restoredRecords = JSON.parse(restored["dispositions.json"].toString());
+  expect(restoredRecords).toHaveLength(3);
+  for (const row of records) {
+    const got = restoredRecords.find((candidate: { name: string }) => candidate.name === row.name);
+    expect(got.id).not.toBe(row.id);
+    expect(got.group_id).not.toBe(row.group_id);
+    for (const key of Object.keys(row).filter(key => !["id", "group_id"].includes(key)))
+      expect(got[key]).toEqual(row[key]);
+  }
+  expect(
+    JSON.parse(restored["entities.json"].toString())
+      .map((row: { name: string }) => row.name)
+      .sort()
+  ).toEqual(
+    JSON.parse(entries["entities.json"].toString())
+      .map((row: { name: string }) => row.name)
+      .sort()
+  );
+  const restoredFiles = JSON.parse(restored["disposition_attachments.json"].toString());
+  expect(restoredFiles).toHaveLength(2);
+  for (const file of restoredFiles)
+    expect(restored[`disposition_attachments/${file.id}`].toString()).toBe(`retained-${file.type}`);
+  // History alone prevents a second destructive restore.
+  expect(
+    (
+      await request.post("/api/v1/group/import", {
+        multipart: {
+          file: { name: "history.zip", mimeType: "application/zip", buffer: source.data },
+        },
+      })
+    ).status()
+  ).toBe(409);
 }
 
 async function openRemoval(page: Page, root: EntityOut, place = false) {
@@ -98,6 +219,8 @@ for (const outcome of ["sold", "destroyed", "given_away", "donated", "lost_or_st
     const after = await (await request.get("/api/v1/groups/statistics")).json();
     expect(after.totalItems).toBe(before.totalItems - (place ? 1 : 2));
     expect(after.totalLocations).toBe(before.totalLocations - (place ? 2 : 1));
+    if (["donated", "destroyed"].includes(outcome))
+      await validateHistoryRestore(request, outcome, "Leaving the collection");
   });
 }
 
@@ -142,6 +265,7 @@ test("sale action replaces editable fields and prefills hidden notes", async ({ 
   });
   await expect(page).toHaveURL(/\/home$/);
   expect((await request.get(`/api/v1/entities/${root.id}`)).status()).toBe(404);
+  await validateHistoryRestore(request, "sold", "Hidden legacy notes");
 });
 
 test("changed tree requires a new review and keeps entries", async ({ page, request }) => {

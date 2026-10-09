@@ -133,6 +133,72 @@ func TestExportDispositionSnapshotsAndEvidence(t *testing.T) {
 	require.Equal(t, 3, mf.Counts["retained_evidence_files"])
 	require.Zero(t, mf.Counts["entities"])
 	require.Zero(t, mf.Counts["attachments"])
+	// A history-only import must not create active inventory, nor substitute
+	// the importer for the (deliberately nonexistent) historical recorder.
+	dst, err := tRepos.Groups.GroupCreate(ctx, "restored-"+fk.Str(6), uuid.Nil)
+	require.NoError(t, err)
+	require.NoError(t, importDispositionZIP(t, dst.ID, files, ""))
+	restored, err := tRepos.Dispositions.ListByGroup(ctx, dst.ID)
+	require.NoError(t, err)
+	require.Len(t, restored, len(rows))
+	ready, err := tSvc.Exports.IsGroupReadyForImport(ctx, dst.ID)
+	require.NoError(t, err)
+	require.False(t, ready, "history-only collections must not be wiped by restore")
+	second := dispositionExportZIP(t, dst.ID)
+	var secondRows []map[string]any
+	require.NoError(t, json.Unmarshal(second["dispositions.json"], &secondRows))
+	byKind := map[string]map[string]any{}
+	for _, row := range secondRows {
+		byKind[row["disposition"].(string)] = row
+	}
+	for _, original := range rows {
+		got := byKind[original["disposition"].(string)]
+		require.NotEqual(t, original["id"], got["id"])
+		require.Equal(t, dst.ID.String(), got["group_id"])
+		for key, val := range original {
+			if key != "id" && key != "group_id" {
+				require.Equal(t, val, got[key], key)
+			}
+		}
+	}
+	var secondFiles []map[string]any
+	require.NoError(t, json.Unmarshal(second["disposition_attachments.json"], &secondFiles))
+	require.Len(t, secondFiles, len(metadata))
+	var paths []string
+	for _, row := range secondFiles {
+		key := row["path"].(string)
+		require.Contains(t, key, dst.ID.String()+"/dispositions/")
+		paths = append(paths, key)
+		data, err := bucket.ReadAll(ctx, tRepos.Attachments.GetFullPath(key))
+		require.NoError(t, err)
+		require.Equal(t, data, second[retainedEvidenceDir+row["id"].(string)])
+		matched := false
+		for _, old := range metadata {
+			require.NotEqual(t, old["id"], row["id"])
+			require.NotEqual(t, old["path"], key)
+			if bytes.Equal(data, files[retainedEvidenceDir+old["id"].(string)]) {
+				matched = true
+			}
+		}
+		require.True(t, matched)
+	}
+	var active []map[string]any
+	require.NoError(t, json.Unmarshal(second["entities.json"], &active))
+	require.Empty(t, active)
+	_, err = tRepos.Dispositions.Get(ctx, other.ID, restored[0].ID)
+	require.Error(t, err)
+	require.ErrorContains(t, importDispositionZIP(t, dst.ID, files, ""), "import requires")
+	require.NoError(t, tRepos.Groups.GroupDelete(ctx, dst.ID))
+	for _, key := range paths {
+		exists, err := bucket.Exists(ctx, tRepos.Attachments.GetFullPath(key))
+		require.NoError(t, err)
+		require.False(t, exists)
+	}
+	for _, row := range metadata {
+		exists, err := bucket.Exists(ctx, tRepos.Attachments.GetFullPath(row["path"].(string)))
+		require.NoError(t, err)
+		require.True(t, exists, "destination deletion must preserve source evidence")
+	}
 }
 
 func TestExportOffboardedEvidenceAndActiveInventory(t *testing.T) {
@@ -168,10 +234,42 @@ func TestExportOffboardedEvidenceAndActiveInventory(t *testing.T) {
 		require.Contains(t, []string{"photo", "receipt"}, row["type"])
 		require.Equal(t, []byte("bytes-"+row["type"].(string)), files[retainedEvidenceDir+row["id"].(string)])
 	}
+	// A mixed import stages retained bytes first. If restoring a later active
+	// attachment fails, compensate both kinds of rows and all staged evidence.
+	dst, err := tRepos.Groups.GroupCreate(ctx, "mixed-dst-"+fk.Str(6), uuid.Nil)
+	require.NoError(t, err)
+	require.ErrorContains(t, importDispositionZIP(t, dst.ID, files, attachmentsDir+activeAtt.ID.String()), "checksum error")
+	ready, err := tSvc.Exports.IsGroupReadyForImport(ctx, dst.ID)
+	require.NoError(t, err)
+	require.True(t, ready)
+	restored, err := tRepos.Dispositions.ListByGroup(ctx, dst.ID)
+	require.NoError(t, err)
+	require.Empty(t, restored)
+	require.NoError(t, importDispositionZIP(t, dst.ID, files, ""))
+	mixed := dispositionExportZIP(t, dst.ID)
+	var restoredActive []map[string]any
+	require.NoError(t, json.Unmarshal(mixed["entities.json"], &restoredActive))
+	require.Len(t, restoredActive, 1)
+	require.Equal(t, "staying", restoredActive[0]["name"])
+	var restoredMetadata []map[string]any
+	require.NoError(t, json.Unmarshal(mixed["disposition_attachments.json"], &restoredMetadata))
+	require.Len(t, restoredMetadata, 2)
+
 	// Losing required bytes must fail both artifact creation and the tracked job.
 	bucket, err := blob.OpenBucket(ctx, tRepos.Attachments.GetConnString())
 	require.NoError(t, err)
 	defer bucket.Close()
+	it := bucket.List(&blob.ListOptions{Prefix: tRepos.Attachments.GetFullPath(dst.ID.String() + "/dispositions/")})
+	stagedCount := 0
+	for {
+		_, err := it.Next(ctx)
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+		stagedCount++
+	}
+	require.Equal(t, 2, stagedCount, "failed mixed restore must not leave retained-byte orphans")
 	require.NoError(t, bucket.Delete(ctx, tRepos.Attachments.GetFullPath(metadata[0]["path"].(string))))
 	exp, err := tRepos.Exports.Create(ctx, src.ID)
 	require.NoError(t, err)

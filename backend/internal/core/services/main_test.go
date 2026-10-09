@@ -2,7 +2,12 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"log"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"os"
 	"testing"
 
@@ -58,7 +63,20 @@ func MainNoExit(m *testing.M) int {
 	// (see hasher.HashAPIKey); the app sets it at startup, so tests must too.
 	hasher.SetAPIKeyPepper([]byte("test-api-key-pepper"))
 
-	client, err := ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1&_time_format=sqlite")
+	driver := "sqlite3"
+	client, err := ent.Open(driver, "file:ent?mode=memory&cache=shared&_fk=1&_time_format=sqlite")
+	// Opt-in, disposable database for cross-dialect ZIP restore tests.
+	if dsn := os.Getenv("HBOX_TEST_SERVICES_POSTGRES_DSN"); dsn != "" {
+		if client != nil {
+			_ = client.Close()
+		}
+		driver = "postgres"
+		var db *sql.DB
+		db, err = sql.Open("pgx", dsn)
+		if err == nil {
+			client = ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db)))
+		}
+	}
 	if err != nil {
 		log.Fatalf("failed opening connection to sqlite: %v", err)
 	}
@@ -96,7 +114,7 @@ func MainNoExit(m *testing.M) int {
 		WithExportPlumbing(tbus, tClient, config.Storage{
 			PrefixPath: "/",
 			ConnString: "file://" + os.TempDir(),
-		}, "mem://{{ .Topic }}", "sqlite3"),
+		}, "mem://{{ .Topic }}", driver),
 	)
 	defer func() { _ = client.Close() }()
 
