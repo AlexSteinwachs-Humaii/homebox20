@@ -71,7 +71,7 @@ paths:
     post:
       security:
         - Bearer: []
-      description: Deletes all items in the inventory
+      description: "Rejected: offboard each item or place with a disposition instead."
       tags:
         - Actions
       summary: Wipe Inventory
@@ -82,12 +82,12 @@ paths:
               $ref: "#/components/schemas/v1.WipeInventoryOptions"
         description: Wipe options
       responses:
-        "200":
-          description: OK
+        "409":
+          description: Conflict
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/v1.ActionAmountResult"
+                $ref: "#/components/schemas/validate.ErrorResponse"
   /v1/actions/zero-item-time-fields:
     post:
       security:
@@ -351,9 +351,11 @@ paths:
     delete:
       security:
         - Bearer: []
+      description: Use GET /v1/entities/{id}/offboarding and POST
+        /v1/entities/{id}/offboarding instead.
       tags:
         - Entities
-      summary: Delete Entity
+      summary: Reject disposition-free entity removal
       parameters:
         - description: Entity ID
           name: id
@@ -362,8 +364,8 @@ paths:
           schema:
             type: string
       responses:
-        "204":
-          description: No Content
+        "409":
+          description: Conflict
     patch:
       security:
         - Bearer: []
@@ -650,6 +652,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/repo.MaintenanceEntry"
+  "/v1/entities/{id}/offboarding":
+    get:
+      security:
+        - Bearer: []
+      description: Available to any authenticated member of the entity's collection.
+        Confirmation covers the complete descendant tree.
+      tags:
+        - Entities
+      summary: Preview item or place offboarding
+      parameters:
+        - description: Entity ID
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/repo.OffboardingPreview"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/validate.ErrorResponse"
+    post:
+      security:
+        - Bearer: []
+      description: Any collection member may act. Requires a preview confirmation and
+        a calendar date (YYYY-MM-DD). Sold, given_away and donated require a
+        recipient. Notes may be empty; value may be omitted or zero. A changed
+        tree returns 409 without mutation. Collection and recorder come from
+        authentication, never the body.
+      tags:
+        - Entities
+      summary: Offboard an item or place and all descendants
+      parameters:
+        - description: Entity ID
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/services.OffboardingRequest"
+        description: Disposition and confirmed tree
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/services.OffboardingResult"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/validate.ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/validate.ErrorResponse"
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/validate.ErrorResponse"
   "/v1/entities/{id}/path":
     get:
       security:
@@ -2091,6 +2172,28 @@ components:
           type: string
         symbol:
           type: string
+    disposition.Disposition:
+      type: string
+      enum:
+        - sold
+        - destroyed
+        - given_away
+        - donated
+        - lost_or_stolen
+      x-enum-varnames:
+        - DispositionSold
+        - DispositionDestroyed
+        - DispositionGivenAway
+        - DispositionDonated
+        - DispositionLostOrStolen
+    dispositionattachment.Type:
+      type: string
+      enum:
+        - photo
+        - receipt
+      x-enum-varnames:
+        - TypePhoto
+        - TypeReceipt
     ent.APIKey:
       type: object
       properties:
@@ -2237,6 +2340,140 @@ components:
           description: User holds the value of the user edge.
           allOf:
             - $ref: "#/components/schemas/ent.User"
+    ent.Disposition:
+      type: object
+      properties:
+        asset_id:
+          description: AssetID holds the value of the "asset_id" field.
+          type: integer
+        created_at:
+          description: CreatedAt holds the value of the "created_at" field.
+          type: string
+        disposition:
+          description: Disposition holds the value of the "disposition" field.
+          allOf:
+            - $ref: "#/components/schemas/disposition.Disposition"
+        disposition_date:
+          description: DispositionDate holds the value of the "disposition_date" field.
+          type: string
+        edges:
+          description: >-
+            Edges holds the relations/edges for other nodes in the graph.
+
+            The values are being populated by the DispositionQuery when eager-loading is set.
+          allOf:
+            - $ref: "#/components/schemas/ent.DispositionEdges"
+        group_id:
+          description: GroupID holds the value of the "group_id" field.
+          type: string
+        id:
+          description: ID of the ent.
+          type: string
+        insured:
+          description: Insured holds the value of the "insured" field.
+          type: boolean
+        is_location:
+          description: IsLocation holds the value of the "is_location" field.
+          type: boolean
+        manufacturer:
+          description: Manufacturer holds the value of the "manufacturer" field.
+          type: string
+        model_number:
+          description: ModelNumber holds the value of the "model_number" field.
+          type: string
+        name:
+          description: Name holds the value of the "name" field.
+          type: string
+        notes:
+          description: Notes holds the value of the "notes" field.
+          type: string
+        parent_name:
+          description: ParentName holds the value of the "parent_name" field.
+          type: string
+        purchase_date:
+          description: PurchaseDate holds the value of the "purchase_date" field.
+          type: string
+        purchase_from:
+          description: PurchaseFrom holds the value of the "purchase_from" field.
+          type: string
+        purchase_price:
+          description: PurchasePrice holds the value of the "purchase_price" field.
+          type: number
+        quantity:
+          description: Quantity holds the value of the "quantity" field.
+          type: number
+        recipient:
+          description: Recipient holds the value of the "recipient" field.
+          type: string
+        recorder_id:
+          description: RecorderID holds the value of the "recorder_id" field.
+          type: string
+        recorder_name:
+          description: RecorderName holds the value of the "recorder_name" field.
+          type: string
+        serial_number:
+          description: SerialNumber holds the value of the "serial_number" field.
+          type: string
+        updated_at:
+          description: UpdatedAt holds the value of the "updated_at" field.
+          type: string
+        value:
+          description: Value holds the value of the "value" field.
+          type: number
+    ent.DispositionAttachment:
+      type: object
+      properties:
+        created_at:
+          description: CreatedAt holds the value of the "created_at" field.
+          type: string
+        disposition_id:
+          description: DispositionID holds the value of the "disposition_id" field.
+          type: string
+        edges:
+          description: >-
+            Edges holds the relations/edges for other nodes in the graph.
+
+            The values are being populated by the DispositionAttachmentQuery when eager-loading is set.
+          allOf:
+            - $ref: "#/components/schemas/ent.DispositionAttachmentEdges"
+        id:
+          description: ID of the ent.
+          type: string
+        mime_type:
+          description: MimeType holds the value of the "mime_type" field.
+          type: string
+        path:
+          description: Path holds the value of the "path" field.
+          type: string
+        title:
+          description: Title holds the value of the "title" field.
+          type: string
+        type:
+          description: Type holds the value of the "type" field.
+          allOf:
+            - $ref: "#/components/schemas/dispositionattachment.Type"
+        updated_at:
+          description: UpdatedAt holds the value of the "updated_at" field.
+          type: string
+    ent.DispositionAttachmentEdges:
+      type: object
+      properties:
+        disposition:
+          description: Disposition holds the value of the disposition edge.
+          allOf:
+            - $ref: "#/components/schemas/ent.Disposition"
+    ent.DispositionEdges:
+      type: object
+      properties:
+        attachments:
+          description: Attachments holds the value of the attachments edge.
+          type: array
+          items:
+            $ref: "#/components/schemas/ent.DispositionAttachment"
+        group:
+          description: Group holds the value of the group edge.
+          allOf:
+            - $ref: "#/components/schemas/ent.Group"
     ent.Entity:
       type: object
       properties:
@@ -2622,6 +2859,11 @@ components:
     ent.GroupEdges:
       type: object
       properties:
+        dispositions:
+          description: Dispositions holds the value of the dispositions edge.
+          type: array
+          items:
+            $ref: "#/components/schemas/ent.Disposition"
         entities:
           description: Entities holds the value of the entities edge.
           type: array
@@ -3970,6 +4212,15 @@ components:
         url:
           type: string
           nullable: true
+    repo.OffboardingPreview:
+      type: object
+      properties:
+        confirmation:
+          type: string
+        descendantCount:
+          type: integer
+        rootId:
+          type: string
     repo.PaginationResult-repo_EntitySummary:
       type: object
       properties:
@@ -4194,6 +4445,45 @@ components:
           type: string
         version:
           type: string
+    services.OffboardingRequest:
+      type: object
+      required:
+        - confirmation
+        - date
+        - disposition
+      properties:
+        confirmation:
+          type: string
+        date:
+          type: string
+          example: 2026-10-09
+        disposition:
+          type: string
+          enum:
+            - sold
+            - destroyed
+            - given_away
+            - donated
+            - lost_or_stolen
+        notes:
+          type: string
+          maxLength: 10000
+        recipient:
+          type: string
+          maxLength: 1000
+        value:
+          type: number
+          minimum: 0
+          nullable: true
+    services.OffboardingResult:
+      type: object
+      properties:
+        completed:
+          type: integer
+        recordIds:
+          type: array
+          items:
+            type: string
     services.UserRegistration:
       type: object
       properties:

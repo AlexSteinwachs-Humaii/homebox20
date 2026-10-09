@@ -213,6 +213,8 @@ func (a *app) mountRoutes(r *chi.Mux, chain *errchain.ErrChain, repos *repo.AllR
 		r.Put("/entities/{id}", chain.ToHandlerFunc(v1Ctrl.HandleEntityUpdate(), userMW...))
 		r.Patch("/entities/{id}", chain.ToHandlerFunc(v1Ctrl.HandleEntityPatch(), userMW...))
 		r.Delete("/entities/{id}", chain.ToHandlerFunc(v1Ctrl.HandleEntityDelete(), userMW...))
+		r.Get("/entities/{id}/offboarding", chain.ToHandlerFunc(v1Ctrl.HandleOffboardingPreview(), userMW...))
+		r.Post("/entities/{id}/offboarding", chain.ToHandlerFunc(v1Ctrl.HandleOffboardingComplete(), userMW...))
 		r.Post("/entities/{id}/duplicate", chain.ToHandlerFunc(v1Ctrl.HandleEntityDuplicate(), userMW...))
 
 		// Entity attachment endpoints

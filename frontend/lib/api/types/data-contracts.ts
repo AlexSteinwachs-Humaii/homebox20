@@ -56,6 +56,19 @@ export enum EntityfieldType {
   TypeTime = "time",
 }
 
+export enum DispositionattachmentType {
+  TypePhoto = "photo",
+  TypeReceipt = "receipt",
+}
+
+export enum DispositionDisposition {
+  DispositionSold = "sold",
+  DispositionDestroyed = "destroyed",
+  DispositionGivenAway = "given_away",
+  DispositionDonated = "donated",
+  DispositionLostOrStolen = "lost_or_stolen",
+}
+
 export enum AuthrolesRole {
   DefaultRole = "user",
   RoleAdmin = "admin",
@@ -179,6 +192,96 @@ export interface EntAuthTokensEdges {
   roles: EntAuthRoles;
   /** User holds the value of the user edge. */
   user: EntUser;
+}
+
+export interface EntDisposition {
+  /** AssetID holds the value of the "asset_id" field. */
+  asset_id: number;
+  /** CreatedAt holds the value of the "created_at" field. */
+  created_at: string;
+  /** Disposition holds the value of the "disposition" field. */
+  disposition: DispositionDisposition;
+  /** DispositionDate holds the value of the "disposition_date" field. */
+  disposition_date: Date | string;
+  /**
+   * Edges holds the relations/edges for other nodes in the graph.
+   * The values are being populated by the DispositionQuery when eager-loading is set.
+   */
+  edges: EntDispositionEdges;
+  /** GroupID holds the value of the "group_id" field. */
+  group_id: string;
+  /** ID of the ent. */
+  id: string;
+  /** Insured holds the value of the "insured" field. */
+  insured: boolean;
+  /** IsLocation holds the value of the "is_location" field. */
+  is_location: boolean;
+  /** Manufacturer holds the value of the "manufacturer" field. */
+  manufacturer: string;
+  /** ModelNumber holds the value of the "model_number" field. */
+  model_number: string;
+  /** Name holds the value of the "name" field. */
+  name: string;
+  /** Notes holds the value of the "notes" field. */
+  notes: string;
+  /** ParentName holds the value of the "parent_name" field. */
+  parent_name: string;
+  /** PurchaseDate holds the value of the "purchase_date" field. */
+  purchase_date: Date | string;
+  /** PurchaseFrom holds the value of the "purchase_from" field. */
+  purchase_from: string;
+  /** PurchasePrice holds the value of the "purchase_price" field. */
+  purchase_price: number;
+  /** Quantity holds the value of the "quantity" field. */
+  quantity: number;
+  /** Recipient holds the value of the "recipient" field. */
+  recipient: string;
+  /** RecorderID holds the value of the "recorder_id" field. */
+  recorder_id: string;
+  /** RecorderName holds the value of the "recorder_name" field. */
+  recorder_name: string;
+  /** SerialNumber holds the value of the "serial_number" field. */
+  serial_number: string;
+  /** UpdatedAt holds the value of the "updated_at" field. */
+  updated_at: string;
+  /** Value holds the value of the "value" field. */
+  value: number;
+}
+
+export interface EntDispositionAttachment {
+  /** CreatedAt holds the value of the "created_at" field. */
+  created_at: string;
+  /** DispositionID holds the value of the "disposition_id" field. */
+  disposition_id: string;
+  /**
+   * Edges holds the relations/edges for other nodes in the graph.
+   * The values are being populated by the DispositionAttachmentQuery when eager-loading is set.
+   */
+  edges: EntDispositionAttachmentEdges;
+  /** ID of the ent. */
+  id: string;
+  /** MimeType holds the value of the "mime_type" field. */
+  mime_type: string;
+  /** Path holds the value of the "path" field. */
+  path: string;
+  /** Title holds the value of the "title" field. */
+  title: string;
+  /** Type holds the value of the "type" field. */
+  type: DispositionattachmentType;
+  /** UpdatedAt holds the value of the "updated_at" field. */
+  updated_at: string;
+}
+
+export interface EntDispositionAttachmentEdges {
+  /** Disposition holds the value of the disposition edge. */
+  disposition: EntDisposition;
+}
+
+export interface EntDispositionEdges {
+  /** Attachments holds the value of the attachments edge. */
+  attachments: EntDispositionAttachment[];
+  /** Group holds the value of the group edge. */
+  group: EntGroup;
 }
 
 export interface EntEntity {
@@ -427,6 +530,8 @@ export interface EntGroup {
 }
 
 export interface EntGroupEdges {
+  /** Dispositions holds the value of the dispositions edge. */
+  dispositions: EntDisposition[];
   /** Entities holds the value of the entities edge. */
   entities: EntEntity[];
   /** EntityTemplates holds the value of the entity_templates edge. */
@@ -1182,6 +1287,12 @@ export interface NotifierUpdate {
   url?: string | null;
 }
 
+export interface OffboardingPreview {
+  confirmation: string;
+  descendantCount: number;
+  rootId: string;
+}
+
 export interface PaginationResultEntitySummary {
   items: EntitySummary[];
   page: number;
@@ -1314,6 +1425,29 @@ export interface ValueOverTimeEntry {
 export interface Latest {
   date: Date | string;
   version: string;
+}
+
+export interface OffboardingRequest {
+  confirmation: string;
+  /** @example "2026-10-09" */
+  date: string;
+  disposition:
+    | "sold"
+    | "destroyed"
+    | "given_away"
+    | "donated"
+    | "lost_or_stolen";
+  /** @maxLength 10000 */
+  notes?: string;
+  /** @maxLength 1000 */
+  recipient?: string;
+  /** @min 0 */
+  value?: number | null;
+}
+
+export interface OffboardingResult {
+  completed: number;
+  recordIds: string[];
 }
 
 export interface UserRegistration {

@@ -12,6 +12,9 @@ import type {
   MaintenanceEntryCreate,
   MaintenanceEntryWithDetails,
   TreeItem,
+  OffboardingPreview,
+  OffboardingRequest,
+  OffboardingResult,
 } from "../types/data-contracts";
 import type { AttachmentTypes } from "../types/non-generated";
 import type { MaintenanceFilters } from "./maintenance.ts";
@@ -105,6 +108,17 @@ export class ItemMaintenanceAPI extends BaseAPI {
 }
 
 export class ItemsApi extends BaseAPI {
+  previewOffboarding(id: string) {
+    return this.http.get<OffboardingPreview>({ url: route(`/entities/${id}/offboarding`) });
+  }
+
+  offboard(id: string, body: OffboardingRequest) {
+    return this.http.post<OffboardingRequest, OffboardingResult>({
+      url: route(`/entities/${id}/offboarding`),
+      body,
+    });
+  }
+
   attachments: AttachmentsAPI;
   maintenance: ItemMaintenanceAPI;
   fields: FieldsAPI;

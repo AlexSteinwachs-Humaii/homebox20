@@ -263,29 +263,16 @@ func (ctrl *V1Controller) HandleEntityGet() errchain.HandlerFunc {
 
 // HandleEntityDelete godoc
 //
-//	@Summary	Delete Entity
+//	@Summary	Reject disposition-free entity removal
 //	@Tags		Entities
 //	@Produce	json
 //	@Param		id	path	string	true	"Entity ID"
-//	@Success	204
+//	@Description Use GET /v1/entities/{id}/offboarding and POST /v1/entities/{id}/offboarding instead.
+//	@Failure	409
 //	@Router		/v1/entities/{id} [DELETE]
 //	@Security	Bearer
 func (ctrl *V1Controller) HandleEntityDelete() errchain.HandlerFunc {
-	fn := func(r *http.Request, ID uuid.UUID) (any, error) {
-		spanCtx, span := startEntityCtrlSpan(r.Context(), "controller.V1.HandleEntityDelete",
-			attribute.String("entity.id", ID.String()))
-		defer span.End()
-
-		auth := services.NewContext(spanCtx)
-		span.SetAttributes(attribute.String("group.id", auth.GID.String()))
-		err := ctrl.repo.Entities.DeleteByGroup(auth, auth.GID, ID)
-		if err != nil {
-			recordCtrlSpanError(span, err)
-		}
-		return nil, err
-	}
-
-	return adapters.CommandID("id", fn, http.StatusNoContent)
+	return dispositionRequiredHandler()
 }
 
 // HandleEntityUpdate godoc
