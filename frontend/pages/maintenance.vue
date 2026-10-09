@@ -37,13 +37,18 @@
         <p v-if="!needsYou.length" role="status" class="rounded-xl border bg-card p-5 text-muted-foreground">
           {{ t("care.empty") }}
         </p>
-        <CareRow v-for="row in needsYou" :key="`${row.kind}:${row.maintenanceId || row.itemId}`" :row="row" />
+        <CareRow
+          v-for="row in needsYou"
+          :key="`${row.kind}:${row.maintenanceId || row.itemId}`"
+          :row="row"
+          @updated="refresh()"
+        />
       </section>
       <section v-if="comingUp.length" aria-labelledby="coming-up-heading" class="space-y-3 text-muted-foreground">
         <h2 id="coming-up-heading" class="text-sm font-semibold uppercase tracking-widest">
           {{ t("care.coming_up") }}
         </h2>
-        <CareRow v-for="row in comingUp" :key="row.maintenanceId || row.itemId" :row="row" />
+        <CareRow v-for="row in comingUp" :key="row.maintenanceId || row.itemId" :row="row" @updated="refresh()" />
       </section>
       <p class="text-sm text-muted-foreground">{{ t("care.footer") }}</p>
     </template>

@@ -75,3 +75,66 @@ test("an empty needs-you list hides gold count but retains Coming up", async ({ 
   await expect(page.getByRole("heading", { name: "Coming up" })).toBeVisible();
   await expect(page.locator("[data-care-kind]")).toHaveCount(1);
 });
+
+test("done and snooze update existing entries and refresh the shared count", async ({ page }) => {
+  const current = structuredClone(queue);
+  const updates: Record<string, unknown>[] = [];
+  await page.route("**/api/v1/care", route => route.fulfill({ json: current }));
+  const entry = (id: string, scheduledDate: string) => ({
+    id,
+    scheduledDate,
+    completedDate: "",
+    name: "Filter",
+    description: "Replace every 90 days",
+    cost: "42.50",
+  });
+  await page.route("**/api/v1/entities/*/maintenance?status=both", route => {
+    const future = route.request().url().includes("item-coming_up");
+    return route.fulfill({
+      json: [entry(future ? "task-coming_up" : "task-overdue", future ? "2099-12-29" : "2020-01-01")],
+    });
+  });
+  await page.route("**/api/v1/maintenance/*", async route => {
+    expect(route.request().method()).toBe("PUT");
+    const body = route.request().postDataJSON();
+    updates.push(body);
+    if (route.request().url().endsWith("task-overdue")) {
+      current.needsYou.shift();
+      current.count--;
+    } else {
+      current.comingUp[0]!.scheduledDate = body.scheduledDate;
+    }
+    await route.fulfill({ json: { ...body, id: "task" } });
+  });
+  await login(page);
+  await page.locator('[data-sidebar="sidebar"] a[href="/maintenance"]').click();
+  await page.getByRole("button", { name: "Mark done" }).click();
+  await expect(page.locator('[data-care-kind="overdue"]')).toHaveCount(0);
+  await expect(page.getByTestId("care-page-count")).toHaveText("2 things need you");
+  await expect(page.getByTestId("care-count")).toHaveText("2");
+  const localToday = await page.evaluate(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  expect(updates[0]).toEqual({
+    name: "Filter",
+    description: "Replace every 90 days",
+    cost: "42.50",
+    scheduledDate: "2020-01-01",
+    completedDate: localToday,
+  });
+  await page.getByRole("button", { name: "Snooze" }).click();
+  await expect.poll(() => updates.length).toBe(2);
+  expect(updates[1]).toEqual({
+    name: "Filter",
+    description: "Replace every 90 days",
+    cost: "42.50",
+    scheduledDate: "2100-01-05",
+    completedDate: "",
+  });
+  await expect(page.getByTestId("care-page-count")).toHaveText("2 things need you");
+  await expect(page.getByTestId("care-count")).toHaveText("2");
+  await page.reload();
+  await expect(page.locator('[data-care-kind="overdue"]')).toHaveCount(0);
+  await expect(page.getByTestId("care-page-count")).toHaveText("2 things need you");
+});

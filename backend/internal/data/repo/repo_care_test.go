@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
 )
 
 func TestCareQueue(t *testing.T) {
@@ -123,4 +124,58 @@ func TestCareQueue(t *testing.T) {
 	require.Zero(t, empty.Count)
 	require.NotNil(t, empty.NeedsYou)
 	require.NotNil(t, empty.ComingUp)
+}
+
+func TestCareMaintenanceActions(t *testing.T) {
+	ctx := context.Background()
+	today := time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC)
+	g, err := tRepos.Groups.GroupCreate(ctx, "Care actions", uuid.Nil)
+	require.NoError(t, err)
+	et, err := tRepos.EntityTypes.GetDefault(ctx, g.ID, false)
+	require.NoError(t, err)
+	item, err := tClient.Entity.Create().SetName("Filter").SetGroupID(g.ID).SetEntityTypeID(et.ID).Save(ctx)
+	require.NoError(t, err)
+	_, err = tClient.Attachment.Create().SetEntity(item).SetType(attachment.TypePhoto).SetPrimary(true).Save(ctx)
+	require.NoError(t, err)
+	create := func(days int) MaintenanceEntry {
+		m, err := tRepos.MaintEntry.Create(ctx, g.ID, item.ID, MaintenanceEntryCreate{
+			Name: "Filter", Description: "replace every 90 days", Cost: 42.5,
+			ScheduledDate: types.DateFromTime(today.AddDate(0, 0, days)),
+		})
+		require.NoError(t, err)
+		return m
+	}
+	overdue, future := create(-6), create(20)
+	before, err := tRepos.Care.getAt(ctx, g.ID, today)
+	require.NoError(t, err)
+	require.Equal(t, 1, before.Count)
+	done, err := tRepos.MaintEntry.Update(ctx, g.ID, overdue.ID, MaintenanceEntryUpdate{
+		Name: overdue.Name, Description: overdue.Description, Cost: overdue.Cost,
+		ScheduledDate: overdue.ScheduledDate, CompletedDate: types.DateFromTime(today),
+	})
+	require.NoError(t, err)
+	require.Equal(t, today, done.CompletedDate.Time())
+	require.Equal(t, overdue.ScheduledDate, done.ScheduledDate)
+	snoozed, err := tRepos.MaintEntry.Update(ctx, g.ID, future.ID, MaintenanceEntryUpdate{
+		Name: future.Name, Description: future.Description, Cost: future.Cost,
+		ScheduledDate: types.DateFromTime(future.ScheduledDate.Time().AddDate(0, 0, 7)),
+	})
+	require.NoError(t, err)
+	require.True(t, snoozed.CompletedDate.Time().IsZero())
+	require.Equal(t, today.AddDate(0, 0, 27), snoozed.ScheduledDate.Time())
+	for _, day := range []time.Time{today, today.AddDate(0, 0, 1)} {
+		after, err := tRepos.Care.getAt(ctx, g.ID, day)
+		require.NoError(t, err)
+		require.Equal(t, before.Count-1, after.Count)
+		require.Empty(t, after.NeedsYou)
+		require.Len(t, after.ComingUp, 1)
+		require.Equal(t, future.ID, *after.ComingUp[0].MaintenanceID)
+	}
+	log, err := tRepos.MaintEntry.GetMaintenanceByItemID(ctx, g.ID, item.ID, MaintenanceFilters{})
+	require.NoError(t, err)
+	require.Len(t, log, 2) // Description is not a recurrence rule: no next entry.
+	for _, m := range log {
+		require.Equal(t, 42.5, m.Cost)
+		require.Equal(t, "replace every 90 days", m.Description)
+	}
 }

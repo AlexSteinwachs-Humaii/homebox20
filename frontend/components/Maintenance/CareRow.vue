@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
-  import type { CareRow } from "~/lib/api/types/data-contracts";
+  import { MaintenanceFilterStatus, type CareRow } from "~/lib/api/types/data-contracts";
   import { Button } from "@/components/ui/button";
   import Currency from "~/components/global/Currency.vue";
   import DateTime from "~/components/global/DateTime.vue";
@@ -9,8 +9,38 @@
   import MdiCamera from "~icons/mdi/camera";
   import MdiClock from "~icons/mdi/clock-outline";
 
-  defineProps<{ row: CareRow }>();
+  import { toast } from "@/components/ui/sonner";
+  import { careMaintenanceUpdate } from "~/lib/datelib/careMaintenance";
+
+  const props = defineProps<{ row: CareRow }>();
+  const emit = defineEmits<{ updated: [] }>();
   const { t } = useI18n();
+  const busy = ref(false);
+
+  async function updateEntry(action: "done" | "snooze") {
+    const row = props.row;
+    if (busy.value || !row.maintenanceId) return;
+    if (action === "snooze" ? row.kind !== "coming_up" : row.kind !== "overdue") return;
+    busy.value = true;
+    try {
+      const api = useUserApi();
+      // The queue omits cost. Read the current entry rather than overwrite it
+      // with queue display data, and refuse stale completed/overdue snoozes.
+      const result = await api.items.maintenance.getLog(row.itemId, {
+        status: MaintenanceFilterStatus.MaintenanceFilterStatusBoth,
+      });
+      if (result.error) throw new Error("Could not read maintenance entry");
+      const entry = result.data?.find(entry => entry.id === row.maintenanceId);
+      if (!entry) throw new Error("Maintenance entry is no longer available");
+      const { error } = await api.maintenance.update(entry.id, careMaintenanceUpdate(entry, action));
+      if (error) throw new Error("Could not update maintenance entry");
+      emit("updated");
+    } catch {
+      toast.error(t("maintenance.toast.failed_to_update"));
+    } finally {
+      busy.value = false;
+    }
+  }
 </script>
 
 <template>
@@ -49,8 +79,7 @@
       </p>
     </div>
     <div class="justify-self-end">
-      <!-- Mutations are wired in the next story; never pretend a click completed a task. -->
-      <Button v-if="row.kind === 'overdue'" disabled :title="t('care.actions_pending')">
+      <Button v-if="row.kind === 'overdue'" :disabled="busy" :aria-busy="busy" @click="updateEntry('done')">
         <MdiCheck aria-hidden="true" />{{ t("care.mark_done") }}
       </Button>
       <Button v-else-if="row.kind === 'warranty'" variant="outline" as-child>
@@ -59,7 +88,13 @@
       <Button v-else-if="row.kind === 'missing_photo'" variant="outline" as-child>
         <NuxtLink :to="`/item/${row.itemId}/edit`"><MdiCamera aria-hidden="true" />{{ t("care.add_photo") }}</NuxtLink>
       </Button>
-      <Button v-else variant="outline" disabled :title="t('care.actions_pending')">
+      <Button
+        v-else-if="row.kind === 'coming_up'"
+        variant="outline"
+        :disabled="busy"
+        :aria-busy="busy"
+        @click="updateEntry('snooze')"
+      >
         <MdiClock aria-hidden="true" />{{ t("care.snooze") }}
       </Button>
     </div>
