@@ -438,6 +438,8 @@
         "api_failure": "Backend API call failed: "
     },
     "global": {
+        "homebox": "HomeBox",
+        "search_items_places_tags": "Search items, places, tags",
         "add": "Add",
         "archived": "Archived",
         "build": "Build: { build }",
@@ -767,6 +769,14 @@
         "total_entries": "Total Entries"
     },
     "menu": {
+        "tonight": "Tonight",
+        "organize": "Organize",
+        "today": "Today",
+        "places": "Places",
+        "things": "Things",
+        "care": "Care",
+        "navigation": "Menu",
+        "collection_name": "{collection} collection",
         "collection": "Collection",
         "create_item": "Item / Asset",
         "create_location": "Location",
