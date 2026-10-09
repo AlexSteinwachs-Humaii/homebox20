@@ -954,6 +954,51 @@
 }
 
 @layer base {
+  /*
+   * Night Atelier: green-black canvas (145 15% 9%), opaque raised cards
+   * (145 14% 14%), mint sage (140 39% 68%), luminous gold (40 85% 64%).
+   * WCAG sRGB contrast: sage/canvas 9.59:1, sage/card 8.19:1,
+   * sage/accent 7.04:1; dark button label/sage 9.59:1.
+   * Border/input against the lightest dark surface (accent): 3.16:1.
+   * Muted text/accent 6.81:1; gold/card 8.73:1; destructive label/red 7.68:1.
+   * html specificity wins over saved .homebox/.theme-* on the root.
+   * All surfaces are solid: no glass behind names, prices, counts or forms.
+   */
+  html.night-atelier {
+    color-scheme: dark;
+    --background: 145 15% 9%;
+    --background-accent: 145 14% 18%;
+    --foreground: 140 15% 94%;
+    --primary: 140 39% 68%;
+    --primary-foreground: 145 15% 9%;
+    --secondary: 140 12% 72%;
+    --secondary-foreground: 145 15% 9%;
+    --accent: 145 14% 18%;
+    --accent-foreground: 140 15% 94%;
+    --muted: 145 14% 14%;
+    --muted-foreground: 140 12% 72%;
+    --card: 145 14% 14%;
+    --card-foreground: 140 15% 94%;
+    --popover: 145 14% 14%;
+    --popover-foreground: 140 15% 94%;
+    --warning: 40 85% 64%;
+    --warning-foreground: 145 15% 9%;
+    --destructive: 0 85% 76%;
+    --destructive-foreground: 0 50% 12%;
+    --input: 140 9% 47%;
+    --border: 140 9% 47%;
+    --ring: 140 39% 68%;
+    --sidebar-background: 145 14% 14%;
+    --sidebar-foreground: 140 15% 94%;
+    --sidebar-primary: 140 39% 68%;
+    --sidebar-primary-foreground: 145 15% 9%;
+    --sidebar-accent: 145 14% 18%;
+    --sidebar-accent-foreground: 140 39% 68%;
+    --sidebar-border: 140 9% 47%;
+    --sidebar-ring: 140 39% 68%;
+    --radius: 0.75rem;
+  }
+
   * {
     @apply border-border;
   }

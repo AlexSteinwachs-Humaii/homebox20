@@ -1,7 +1,7 @@
 <template>
   <div class="pointer-events-none absolute inset-0 z-20 flex flex-col justify-between">
     <!-- Top bar -->
-    <div class="pointer-events-auto flex items-center gap-3 bg-background/60 p-3 backdrop-blur-sm">
+    <div class="pointer-events-auto flex items-center gap-3 bg-card p-3">
       <Button
         variant="ghost"
         size="icon"
@@ -20,7 +20,7 @@
     </div>
 
     <!-- Bottom bar -->
-    <div class="pointer-events-auto flex items-center justify-center gap-4 bg-background/60 p-3 backdrop-blur-sm">
+    <div class="pointer-events-auto flex items-center justify-center gap-4 bg-card p-3">
       <Button variant="outline" size="sm" @click="$emit('switchCamera')">
         <MdiCameraFlip class="mr-1.5 size-4" />
         {{ t("scanner_ar.switch_camera") }}

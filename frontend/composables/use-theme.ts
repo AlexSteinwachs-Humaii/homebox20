@@ -12,7 +12,7 @@ export function useTheme(): UseTheme {
   const htmlEl = ref<HTMLElement | null>(null);
 
   const applyThemeToDom = (newTheme: DaisyTheme) => {
-    if (!htmlEl.value) {
+    if (!htmlEl.value || htmlEl.value.classList.contains("night-atelier")) {
       return;
     }
 
@@ -33,20 +33,29 @@ export function useTheme(): UseTheme {
 
   onMounted(() => {
     htmlEl.value = document.querySelector("html");
+    // Night Atelier is a layout appearance, not a saved DaisyUI preference.
+    // Do not read or watch the preference when signed-in consumers mount.
+    if (htmlEl.value?.classList.contains("night-atelier")) {
+      return;
+    }
     applyThemeToDom(theme.value);
-  });
-
-  watch(theme, newTheme => {
-    applyThemeToDom(newTheme);
+    watch(theme, newTheme => {
+      applyThemeToDom(newTheme);
+    });
   });
 
   return { theme, setTheme };
 }
 
 export function useIsThemeInList(list: DaisyTheme[]) {
+  const route = useRoute();
   const theme = useTheme();
 
   return computed(() => {
+    // Existing date pickers need dark mode, not the person's theme preference.
+    if (route.meta.layout !== "empty") {
+      return list.includes("dark");
+    }
     return list.includes(theme.theme.value);
   });
 }

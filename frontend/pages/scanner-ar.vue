@@ -10,6 +10,9 @@
     layout: "empty",
   });
 
+  // Authenticated, but intentionally outside the default shell.
+  useNightAtelier();
+
   useHead({
     title: "HomeBox | AR Scanner",
   });

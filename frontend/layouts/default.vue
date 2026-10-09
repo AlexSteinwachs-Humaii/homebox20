@@ -518,6 +518,8 @@
   const entityTypeStore = useEntityTypeStore();
   entityTypeStore.ensureFetched();
 
+  useNightAtelier();
+
   onMounted(() => {
     locationStore.refreshParents();
     locationStore.refreshTree();
