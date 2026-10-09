@@ -98,6 +98,7 @@ func TestDispositionMigrations(t *testing.T) {
 			require.Zero(t, count, "upgrade must not offboard legacy sold inventory")
 
 			testDispositionSnapshots(t, client)
+			testOffboardingTree(t, client)
 			// Downgrade only this migration: existing inventory is still intact.
 			_, err = provider.Down(ctx)
 			require.NoError(t, err)

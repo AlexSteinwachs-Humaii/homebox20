@@ -11,6 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytype"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/group"
@@ -333,7 +335,7 @@ func (r *GroupRepository) GroupDelete(ctx context.Context, id uuid.UUID) error {
 
 	itm, err := tx.Entity.Query().
 		Where(entity.HasGroupWith(group.ID(id))).
-		WithAttachments().
+		WithAttachments(func(q *ent.AttachmentQuery) { q.WithThumbnail() }).
 		All(ctx)
 	if err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
@@ -342,17 +344,40 @@ func (r *GroupRepository) GroupDelete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	// Keep attachment row operations on the same transaction.
-	attachments := *r.attachments
-	attachments.db = tx.Client()
-
-	// Delete all attachments (and their files) before deleting the entities.
+	paths := []string{}
 	for _, it := range itm {
 		for _, att := range it.Edges.Attachments {
-			if err := attachments.Delete(ctx, id, att.ID); err != nil {
-				log.Err(err).Str("attachment_id", att.ID.String()).Msg("failed to delete attachment during group deletion")
-				// Continue with other attachments even if one fails.
+			if thumb := att.Edges.Thumbnail; thumb != nil {
+				paths = append(paths, thumb.Path)
+				if err := tx.Attachment.UpdateOneID(att.ID).ClearThumbnail().Exec(ctx); err != nil {
+					_ = tx.Rollback()
+					return err
+				}
+				used, err := tx.Attachment.Query().Where(attachment.HasThumbnailWith(attachment.ID(thumb.ID))).Exist(ctx)
+				if err != nil {
+					_ = tx.Rollback()
+					return err
+				}
+				if !used {
+					if err := tx.Attachment.DeleteOneID(thumb.ID).Exec(ctx); err != nil {
+						_ = tx.Rollback()
+						return err
+					}
+				}
 			}
+			if !isExternalLink(att.MimeType) {
+				paths = append(paths, att.Path)
+			}
+		}
+	}
+	retained, err := tx.Disposition.Query().Where(disposition.GroupID(id)).WithAttachments().All(ctx)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	for _, record := range retained {
+		for _, file := range record.Edges.Attachments {
+			paths = append(paths, file.Path)
 		}
 	}
 
@@ -384,7 +409,15 @@ func (r *GroupRepository) GroupDelete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	for _, p := range paths {
+		if err := r.attachments.DeleteUnreferencedBlob(context.WithoutCancel(ctx), p); err != nil {
+			log.Err(err).Str("path", p).Msg("collection deleted; blob cleanup failed; retry DeleteUnreferencedBlob")
+		}
+	}
+	return nil
 }
 
 func (r *GroupRepository) InvitationGet(ctx context.Context, token []byte) (GroupInvitation, error) {

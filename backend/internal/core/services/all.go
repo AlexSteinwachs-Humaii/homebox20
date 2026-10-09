@@ -11,6 +11,7 @@ import (
 )
 
 type AllServices struct {
+	Offboarding       *OffboardingService
 	User              *UserService
 	Group             *GroupService
 	Entities          *EntityService
@@ -107,8 +108,9 @@ func New(repos *repo.AllRepos, opts ...OptionsFunc) *AllServices {
 	}
 
 	return &AllServices{
-		User:  &UserService{repos: repos, mailer: options.mailer},
-		Group: &GroupService{repos},
+		Offboarding: &OffboardingService{repos: repos},
+		User:        &UserService{repos: repos, mailer: options.mailer},
+		Group:       &GroupService{repos},
 		Entities: &EntityService{
 			repo:                 repos,
 			autoIncrementAssetID: options.autoIncrementAssetID,
