@@ -6,6 +6,7 @@
   import { useLocationStore } from "~~/stores/locations";
   import BaseContainer from "@/components/Base/Container.vue";
   import BaseCard from "@/components/Base/Card.vue";
+  import { Button } from "@/components/ui/button";
   import Subtitle from "~/components/global/Subtitle.vue";
   import StatCard from "~/components/global/StatCard/StatCard.vue";
   import ItemCard from "~/components/Item/Card.vue";
@@ -23,7 +24,13 @@
   });
 
   const api = useUserApi();
+  const prefs = useViewPreferences();
   const breakpoints = useBreakpoints();
+
+  const getExportCSV = () => {
+    const url = api.items.exportURL(prefs.value.collectionId ?? undefined);
+    window.open(url, "_blank");
+  };
 
   const locationStore = useLocationStore();
   const locations = computed(() => locationStore.parentLocations);
@@ -39,7 +46,12 @@
   <div>
     <BaseContainer class="flex flex-col gap-4">
       <section>
-        <Subtitle> {{ $t("home.quick_statistics") }} </Subtitle>
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <Subtitle> {{ $t("home.quick_statistics") }} </Subtitle>
+          <Button variant="outline" size="sm" @click="getExportCSV">
+            {{ $t("home.download_csv") }}
+          </Button>
+        </div>
         <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-6">
           <StatCard v-for="(stat, i) in stats" :key="i" :title="stat.label" :value="stat.value" :type="stat.type" />
         </div>

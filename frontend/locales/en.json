@@ -497,6 +497,7 @@
         "entity_type": "Entity Type"
     },
     "home": {
+        "download_csv": "Download CSV",
         "quick_statistics": "Quick Statistics",
         "recently_added": "Recently Added",
         "storage_locations": "Storage Locations",
