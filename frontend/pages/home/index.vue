@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
+  import MdiDownload from "~icons/mdi/download";
   import { statCardData } from "./statistics";
   import { itemsTable } from "./table";
   import { useTagStore } from "~/stores/tags";
@@ -46,12 +47,7 @@
   <div>
     <BaseContainer class="flex flex-col gap-4">
       <section>
-        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <Subtitle> {{ $t("home.quick_statistics") }} </Subtitle>
-          <Button variant="outline" size="sm" @click="getExportCSV">
-            {{ $t("home.download_csv") }}
-          </Button>
-        </div>
+        <Subtitle> {{ $t("home.quick_statistics") }} </Subtitle>
         <div class="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-6">
           <StatCard v-for="(stat, i) in stats" :key="i" :title="stat.label" :value="stat.value" :type="stat.type" />
         </div>
@@ -66,6 +62,12 @@
         </BaseCard>
         <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <ItemCard v-for="item in itemTable.items" :key="item.id" :item="item" />
+        </div>
+        <div class="mt-2 flex justify-end">
+          <Button variant="outline" size="sm" @click="getExportCSV">
+            <MdiDownload class="mr-2 size-4" aria-hidden="true" />
+            {{ $t("home.download_csv") }}
+          </Button>
         </div>
       </section>
 

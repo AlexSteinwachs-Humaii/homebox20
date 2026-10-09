@@ -4,11 +4,19 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 async function downloadInventory(page: Page) {
-  const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Quick Statistics" }) });
+  const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Recently Added" }) });
   const button = section.getByRole("button", { name: "Download CSV", exact: true });
   await expect(button).toBeVisible();
-  // The control belongs beside the subtitle, not in a stat card or the recent-items table.
-  await expect(button.locator("..").getByRole("heading", { name: "Quick Statistics" })).toBeVisible();
+  await expect(button.locator("svg[aria-hidden='true']")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download CSV", exact: true })).toHaveCount(1);
+  // The collection export sits below the table (or its mobile cards / empty state).
+  expect(await button.evaluate(el => el.parentElement === el.closest("section")?.lastElementChild)).toBe(true);
+  const table = section.getByRole("table");
+  if (await table.count()) {
+    const tableBox = await table.boundingBox();
+    const buttonBox = await button.boundingBox();
+    expect(buttonBox!.y).toBeGreaterThanOrEqual(tableBox!.y + tableBox!.height);
+  }
 
   const requestPromise = page.context().waitForEvent("request", {
     predicate: request => new URL(request.url()).pathname === "/api/v1/entities/export",
@@ -88,6 +96,15 @@ test("Home downloads the full standard inventory CSV, including an empty collect
     for (let i = 0; i < 6; i++) {
       expect(full.csv).toContain(`CSV item ${i}`);
     }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole("table")).toHaveCount(0);
+    const mobile = await downloadInventory(page);
+    expect(mobile.csv).toBe(full.csv);
+    const mobileButton = await page.getByRole("button", { name: "Download CSV", exact: true }).boundingBox();
+    expect(mobileButton!.x).toBeGreaterThanOrEqual(0);
+    expect(mobileButton!.x + mobileButton!.width).toBeLessThanOrEqual(390);
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     await page.goto("/collection/tools");
     const inventoryDownload = page.waitForEvent("download");
