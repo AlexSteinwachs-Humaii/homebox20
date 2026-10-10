@@ -2,11 +2,20 @@ import { expect, test } from "@playwright/test";
 
 test("A place lists child rooms before its direct things, with direct counts and values", async ({ page, context }) => {
   await context.addCookies([
-    { name: "hb.auth.session", value: "true", url: test.info().project.use.baseURL! },
-    { name: "hb.auth.attachment_token", value: "test-attachments", url: test.info().project.use.baseURL! },
+    {
+      name: "hb.auth.session",
+      value: "true",
+      url: test.info().project.use.baseURL!,
+    },
+    {
+      name: "hb.auth.attachment_token",
+      value: "test-attachments",
+      url: test.info().project.use.baseURL!,
+    },
   ]);
   await page.routeWebSocket("**/api/v1/ws/events*", () => {});
   const queries: URL[] = [];
+  const creates: { parentId: string; entityTypeId: string; name: string }[] = [];
   const places = [
     { id: "garage", name: "Garage", itemCount: 2 },
     { id: "cabinet", name: "Tool cabinet", itemCount: 11 },
@@ -16,7 +25,16 @@ test("A place lists child rooms before its direct things, with direct counts and
     const url = new URL(route.request().url());
     const path = url.pathname;
     let json: unknown = [];
-    if (path.endsWith("/users/self")) json = { item: { id: "ada", name: "Ada", defaultGroupId: "house" } };
+    if (path === "/api/v1/entities" && route.request().method() === "POST") {
+      const body = route.request().postDataJSON();
+      creates.push(body);
+      json = { ...body, id: `created-${creates.length}`, attachments: [] };
+    } else if (path === "/api/v1/entity-types")
+      json = [
+        { id: "item-type", name: "global.item", isLocation: false },
+        { id: "place-type", name: "global.location", isLocation: true },
+      ];
+    else if (path.endsWith("/users/self")) json = { item: { id: "ada", name: "Ada", defaultGroupId: "house" } };
     else if (path === "/api/v1/groups/all") json = [{ id: "house", name: "House" }];
     else if (path === "/api/v1/groups") json = { id: "house", name: "House", currency: "USD" };
     else if (path === "/api/v1/care") json = { count: 0, needsYou: [], comingUp: [] };
@@ -74,13 +92,18 @@ test("A place lists child rooms before its direct things, with direct counts and
       });
       return;
     } else if (path.includes("status"))
-      json = { telemetry: { enabled: false }, build: { version: "v1.0.0" }, latest: { version: "v1.0.0" } };
+      json = {
+        telemetry: { enabled: false },
+        build: { version: "v1.0.0" },
+        latest: { version: "v1.0.0" },
+      };
     await route.fulfill({ json });
   });
 
   await page.goto("/location/garage");
   const main = page.locator("main");
   await expect(main.getByRole("heading", { name: "Garage", exact: true })).toBeVisible();
+  await expect(main.locator("[data-place-visit]")).toHaveCount(0);
   await expect(main.getByText("The room, then the cabinets inside it.")).toBeVisible();
   await expect(main.locator("[data-place-totals]")).toContainText("2 things");
   await expect(main.locator("[data-place-totals]")).toContainText("$64");
@@ -102,7 +125,10 @@ test("A place lists child rooms before its direct things, with direct counts and
     "/items?loc=garage"
   );
   await expect(main.getByRole("link", { name: "House", exact: true })).toBeVisible();
-  await page.screenshot({ path: test.info().outputPath("place-desktop.png"), fullPage: true });
+  await page.screenshot({
+    path: test.info().outputPath("place-desktop.png"),
+    fullPage: true,
+  });
   await cabinet.click();
   await expect(main.getByRole("heading", { name: "Tool cabinet", exact: true })).toBeVisible();
   await expect(main.locator("[data-place-totals]")).toContainText("11 things");
@@ -111,6 +137,31 @@ test("A place lists child rooms before its direct things, with direct counts and
   await expect(main.getByText("No things live directly in this place yet.")).toBeVisible();
   await main.getByRole("link", { name: "Garage", exact: true }).click();
   await expect(main.getByRole("heading", { name: "Garage", exact: true })).toBeVisible();
+  await expect(cabinet.locator("[data-place-visit]")).toHaveText("You were here");
+  await expect(main.locator("[data-place-visit]")).toHaveCount(1);
+  await page.screenshot({ path: test.info().outputPath("place-visit.png"), fullPage: true });
+  await page.reload();
+  await expect(main.getByRole("heading", { name: "Garage", exact: true })).toBeVisible();
+  await expect(main.locator("[data-place-visit]")).toHaveCount(0);
+
+  for (const [buttonName, name, entityTypeId] of [
+    ["Add item here", "New drill", "item-type"],
+    ["Add a place", "New cabinet", "place-type"],
+  ] as const) {
+    const button = main.getByRole("button", { name: buttonName, exact: true });
+    await expect(button.locator("svg")).toBeVisible();
+    await button.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("combobox", { name: "Parent Location" })).toContainText("Garage");
+    await dialog.getByRole("textbox", { name: /Name/ }).fill(name);
+    await dialog.getByRole("button", { name: "Create and Add Another", exact: true }).click();
+    await expect.poll(() => creates.at(-1)?.name).toBe(name);
+    expect(creates.at(-1)).toMatchObject({ parentId: "garage", entityTypeId });
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+  }
+
   await main.getByRole("link", { name: "All things", exact: true }).click();
   await expect(page).toHaveURL(/\/items\?loc=garage/);
   await expect.poll(() => queries.at(-1)?.searchParams.getAll("parentIds")).toEqual(["garage"]);

@@ -5,6 +5,8 @@
   import { filterZeroValues } from "~~/components/global/DetailsSection/types";
   import type { ItemAttachment } from "~~/lib/api/types/data-contracts";
   import MdiPlus from "~icons/mdi/plus";
+  import MdiMapMarkerOutline from "~icons/mdi/map-marker-outline";
+  import type { PlaceVisit } from "~/lib/place-visit";
   import MdiPencil from "~icons/mdi/pencil";
   import MdiDelete from "~icons/mdi/delete";
   import { useDialog } from "@/components/ui/dialog-provider";
@@ -41,6 +43,10 @@
   const preferences = useViewPreferences();
 
   const locationId = computed<string>(() => route.params.id as string);
+  const visit = useState<PlaceVisit>("night-place-visit", () => null);
+  const previousPlaceId = computed(() =>
+    visit.value?.placeId === locationId.value ? visit.value.previousPlaceId : null
+  );
 
   const { data: location } = useAsyncData(
     () => `place-${locationId.value}`,
@@ -111,6 +117,12 @@
       params: {
         baseType: "item",
       },
+    });
+  }
+
+  function openCreatePlace() {
+    openDialog(DialogID.CreateEntity, {
+      params: { baseType: "location" },
     });
   }
 
@@ -275,8 +287,12 @@
         </Breadcrumb>
         <div class="flex flex-wrap items-end justify-between gap-4">
           <div class="min-w-0">
-            <h1 class="break-words text-4xl font-semibold tracking-tight">{{ location.name }}</h1>
-            <p v-if="location.description" class="mt-2 text-muted-foreground">{{ location.description }}</p>
+            <h1 class="break-words text-4xl font-semibold tracking-tight">
+              {{ location.name }}
+            </h1>
+            <p v-if="location.description" class="mt-2 text-muted-foreground">
+              {{ location.description }}
+            </p>
           </div>
           <p class="flex items-center gap-2 text-primary" data-place-totals>
             <span v-if="directCount !== undefined">{{ $t("home.place_items", { count: directCount }) }}</span>
@@ -295,13 +311,25 @@
             to="/locations"
             class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
           >
-            {{ $t("locations.room.all_places") }} <MdiArrowRight aria-hidden="true" />
+            {{ $t("locations.room.all_places") }}
+            <MdiArrowRight aria-hidden="true" />
           </NuxtLink>
         </div>
         <div v-if="childPlaces.length" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <PhotoCard v-for="child in childPlaces" :key="child.id" :entity="child" place :value="placeValue(child.id)" />
+          <PhotoCard v-for="child in childPlaces" :key="child.id" :entity="child" place :value="placeValue(child.id)">
+            <template v-if="child.id === previousPlaceId" #badge>
+              <span
+                class="absolute left-3 top-3 rounded-full bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground"
+                data-place-visit
+              >
+                {{ $t("locations.room.you_were_here") }}
+              </span>
+            </template>
+          </PhotoCard>
         </div>
-        <p v-else class="text-sm text-muted-foreground">{{ $t("locations.room.no_children") }}</p>
+        <p v-else class="text-sm text-muted-foreground">
+          {{ $t("locations.room.no_children") }}
+        </p>
       </section>
 
       <section class="mb-6" aria-labelledby="things-heading" data-place-things>
@@ -313,21 +341,30 @@
             :to="{ path: '/items', query: { loc: location.id } }"
             class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
           >
-            {{ $t("locations.room.all_things") }} <MdiArrowRight aria-hidden="true" />
+            {{ $t("locations.room.all_things") }}
+            <MdiArrowRight aria-hidden="true" />
           </NuxtLink>
         </div>
         <ul v-if="items?.length" class="space-y-3">
           <NightRow v-for="item in items" :key="item.id" :item="item" />
         </ul>
-        <p v-else-if="items" class="text-sm text-muted-foreground">{{ $t("locations.room.no_things") }}</p>
+        <p v-else-if="items" class="text-sm text-muted-foreground">
+          {{ $t("locations.room.no_things") }}
+        </p>
       </section>
+
+      <div class="mb-6 grid gap-3 sm:grid-cols-2">
+        <Button @click="openCreateItem">
+          <MdiPlus aria-hidden="true" />{{ $t("locations.room.add_item_here") }}
+        </Button>
+        <Button variant="outline" @click="openCreatePlace">
+          <MdiMapMarkerOutline aria-hidden="true" />{{ $t("locations.room.add_place") }}
+        </Button>
+      </div>
 
       <!-- Existing management controls and supporting details remain available. -->
       <div class="mb-6 flex flex-wrap gap-2">
         <LabelMaker :id="location.id" type="location" />
-        <Button @click="openCreateItem"
-          ><MdiPlus aria-hidden="true" />{{ $t("components.location.create_item") }}</Button
-        >
         <Button variant="outline" @click="goToEdit"><MdiPencil aria-hidden="true" />{{ $t("global.edit") }}</Button>
         <Button variant="destructive" @click="confirmDelete"
           ><MdiDelete aria-hidden="true" />{{ $t("global.delete") }}</Button

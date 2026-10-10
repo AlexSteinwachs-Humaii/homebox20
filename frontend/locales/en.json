@@ -753,6 +753,9 @@
     "locations": {
         "room": {
             "inside": "Inside {name}",
+            "you_were_here": "You were here",
+            "add_item_here": "Add item here",
+            "add_place": "Add a place",
             "all_places": "All places",
             "in_this_place": "In this place",
             "all_things": "All things",
