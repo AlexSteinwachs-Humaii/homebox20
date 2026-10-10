@@ -37,10 +37,11 @@ export function useUserApi(): UserClient {
     headers["X-Tenant"] = prefs.value.collectionId;
   }
 
+  const sessionToken = authCtx.attachmentToken;
   const requests = new Requests("", "", headers);
   requests.addResponseInterceptor(logger);
   requests.addResponseInterceptor(async r => {
-    if (r.status === 401) {
+    if (r.status === 401 && authCtx.attachmentToken === sessionToken) {
       console.error("unauthorized request, invalidating session");
       authCtx.invalidateSession();
       navigateTo("/");

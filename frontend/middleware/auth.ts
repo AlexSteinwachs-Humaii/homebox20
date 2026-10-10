@@ -9,6 +9,8 @@ export default defineNuxtRouteMiddleware(async () => {
       redirectTo.value = window.location.pathname;
       return navigateTo("/");
     }
+    // The login page needs no unauthenticated /self request.
+    return;
   }
 
   if (!ctx.user) {

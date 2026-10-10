@@ -39,7 +39,9 @@ class AuthContext implements IAuthContext {
   private static readonly cookieTokenKey = "hb.auth.session";
   private static readonly cookieAttachmentTokenKey = "hb.auth.attachment_token";
 
-  user?: UserOut;
+  private _user = shallowRef<UserOut>();
+  get user() { return this._user.value; }
+  set user(value: UserOut | undefined) { this._user.value = value; }
   private _token: CookieRef<string | null>;
   private _attachmentToken: CookieRef<string | null>;
 
@@ -88,7 +90,8 @@ class AuthContext implements IAuthContext {
 
     if (!r.error) {
       const expiresAt = new Date(r.data.expiresAt);
-      this._token = useCookie(AuthContext.cookieTokenKey);
+      // Keep the watched ref; replacing it can leave watchers on the logged-out value.
+      this._token.value = "true";
       this._attachmentToken = useCookie(AuthContext.cookieAttachmentTokenKey, {
         expires: expiresAt,
       });
