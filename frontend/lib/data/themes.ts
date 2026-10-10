@@ -1,5 +1,6 @@
 export type DaisyTheme =
   | "homebox"
+  | "claude"
   | "light"
   | "dark"
   | "cupcake"
@@ -36,6 +37,10 @@ export type ThemeOption = {
 };
 
 export const themes: ThemeOption[] = [
+  {
+    label: "Claude",
+    value: "claude",
+  },
   {
     label: "Homebox",
     value: "homebox",

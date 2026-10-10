@@ -51,6 +51,42 @@
   */
 
   
+  /* Claude is a light, local-font theme. Keep semantic pairs complete so
+     previews, teleported overlays and existing components share the palette. */
+  .theme-claude {
+    --background: 40 33% 96%;
+    --background-accent: 36 24% 90%;
+    --foreground: 30 8% 20%;
+    --primary: 15 42% 40%;
+    --primary-foreground: 40 33% 98%;
+    --secondary: 36 20% 88%;
+    --secondary-foreground: 30 8% 20%;
+    --accent: 24 32% 88%;
+    --accent-foreground: 15 35% 28%;
+    --muted: 36 20% 92%;
+    --muted-foreground: 30 7% 40%;
+    --card: 40 33% 98%;
+    --card-foreground: 30 8% 20%;
+    --popover: 40 33% 98%;
+    --popover-foreground: 30 8% 20%;
+    --destructive: 0 55% 39%;
+    --destructive-foreground: 40 33% 98%;
+    --input: 30 10% 50%;
+    --border: 30 10% 50%;
+    --ring: 15 42% 40%;
+    --sidebar-background: 36 24% 90%;
+    --sidebar-foreground: 30 8% 20%;
+    --sidebar-primary: 15 42% 40%;
+    --sidebar-primary-foreground: 40 33% 98%;
+    --sidebar-accent: 24 32% 84%;
+    --sidebar-accent-foreground: 15 35% 28%;
+    --sidebar-border: 30 10% 50%;
+    --sidebar-ring: 15 42% 40%;
+    --radius: 0.5rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+
   .theme-aqua {
     --background: 219 53% 43%;
     --background-accent: 219 53% 35%;
@@ -962,6 +998,31 @@
     width: 100%;
     overflow-x: hidden;
   }
+}
+
+/* VueDatePicker has its own palette instead of consuming Tailwind tokens.
+   Scope this bridge to Claude; both its input and calendar use these classes. */
+.theme-claude .dp__theme_light {
+  --dp-background-color: hsl(var(--popover));
+  --dp-text-color: hsl(var(--popover-foreground));
+  --dp-hover-color: hsl(var(--accent));
+  --dp-hover-text-color: hsl(var(--accent-foreground));
+  --dp-hover-icon-color: hsl(var(--foreground));
+  --dp-primary-color: hsl(var(--primary));
+  --dp-primary-text-color: hsl(var(--primary-foreground));
+  --dp-primary-disabled-color: hsl(var(--muted-foreground));
+  --dp-border-color: hsl(var(--input));
+  --dp-menu-border-color: hsl(var(--border));
+  --dp-border-color-hover: hsl(var(--ring));
+  --dp-border-color-focus: hsl(var(--ring));
+  --dp-disabled-color: hsl(var(--muted));
+  --dp-disabled-color-text: hsl(var(--muted-foreground));
+  --dp-icon-color: hsl(var(--muted-foreground));
+  --dp-success-color: hsl(var(--primary));
+  --dp-danger-color: hsl(var(--destructive));
+  --dp-marker-color: hsl(var(--destructive));
+  --dp-highlight-color: hsl(var(--primary) / 0.15);
+  --dp-font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .text-no-transform {
