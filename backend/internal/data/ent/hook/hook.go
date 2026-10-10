@@ -57,6 +57,30 @@ func (f AuthTokensFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuthTokensMutation", m)
 }
 
+// The DispositionFunc type is an adapter to allow the use of ordinary
+// function as Disposition mutator.
+type DispositionFunc func(context.Context, *ent.DispositionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DispositionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DispositionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DispositionMutation", m)
+}
+
+// The DispositionAttachmentFunc type is an adapter to allow the use of ordinary
+// function as DispositionAttachment mutator.
+type DispositionAttachmentFunc func(context.Context, *ent.DispositionAttachmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DispositionAttachmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DispositionAttachmentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DispositionAttachmentMutation", m)
+}
+
 // The EntityFunc type is an adapter to allow the use of ordinary
 // function as Entity mutator.
 type EntityFunc func(context.Context, *ent.EntityMutation) (ent.Value, error)

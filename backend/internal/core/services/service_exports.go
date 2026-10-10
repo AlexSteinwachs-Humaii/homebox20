@@ -23,6 +23,7 @@ import (
 
 	"github.com/sysadminsmedia/homebox/backend/internal/core/services/reporting/eventbus"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytemplate"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytype"
@@ -55,6 +56,16 @@ const manifestFile = "manifest.json"
 
 // attachmentsDir is the prefix inside the zip for attachment blobs.
 const attachmentsDir = "attachments/"
+
+// Retained evidence is independent of active attachment IDs and storage paths.
+const retainedEvidenceDir = "disposition_attachments/"
+
+// Export-only additions: restore/remapping support is a separate delivery.
+// Ownership is derived directly from dispositions, never from removed entities.
+var dispositionExportTables = []tableSpec{
+	{name: "dispositions", scope: "group_id = ?", pkCol: "id", groupCols: []string{"group_id"}},
+	{name: "disposition_attachments", scope: "disposition_id IN (SELECT id FROM dispositions WHERE group_id = ?)", pkCol: "id", fkCols: map[string]string{"disposition_id": "dispositions"}},
+}
 
 // tableSpec describes how to extract one table's rows scoped to a group, and
 // how to handle foreign keys on import.
@@ -275,6 +286,13 @@ func (s *ExportService) EnqueueImport(ctx context.Context, gid uuid.UUID, userID
 // require templates; entity_fields/attachments/maintenance_entries/tag_entities
 // require entities or tags.
 func (s *ExportService) IsGroupReadyForImport(ctx context.Context, gid uuid.UUID) (bool, error) {
+	history, err := s.db.Disposition.Query().Where(disposition.GroupID(gid)).Exist(ctx)
+	if err != nil {
+		return false, err
+	}
+	if history {
+		return false, nil
+	}
 	items, err := s.db.Entity.Query().Where(
 		entity.HasGroupWith(group.ID(gid)),
 		entity.HasEntityTypeWith(entitytype.IsLocation(false)),
@@ -391,13 +409,18 @@ func (s *ExportService) buildArtifact(ctx context.Context, exportID, gid uuid.UU
 
 	counts := make(map[string]int)
 	dbSql := s.db.Sql()
-	for i, spec := range exportTables {
+	tables := append(append([]tableSpec{}, exportTables...), dispositionExportTables...)
+	var retainedRows []map[string]any
+	for i, spec := range tables {
 		rows, err := dumpTable(ctx, dbSql, s.dialect, spec, gid)
 		if err != nil {
 			_ = zw.Close()
 			return "", 0, fmt.Errorf("dump %s: %w", spec.name, err)
 		}
 		counts[spec.name] = len(rows)
+		if spec.name == "disposition_attachments" {
+			retainedRows = rows
+		}
 
 		w, err := zw.Create(spec.name + ".json")
 		if err != nil {
@@ -412,7 +435,7 @@ func (s *ExportService) buildArtifact(ctx context.Context, exportID, gid uuid.UU
 
 		// Coarse-grained progress: 0..80% spans the table dumps, 80..95% the
 		// attachment copies, 95..100% the upload.
-		pct := int(float64(i+1) / float64(len(exportTables)) * 80)
+		pct := int(float64(i+1) / float64(len(tables)) * 80)
 		_ = s.repos.Exports.SetProgress(ctx, gid, exportID, pct)
 	}
 
@@ -421,6 +444,11 @@ func (s *ExportService) buildArtifact(ctx context.Context, exportID, gid uuid.UU
 		_ = zw.Close()
 		return "", 0, fmt.Errorf("copy attachments: %w", err)
 	}
+	if err := s.copyRetainedEvidence(ctx, zw, gid, retainedRows); err != nil {
+		_ = zw.Close()
+		return "", 0, fmt.Errorf("copy retained evidence: %w", err)
+	}
+	counts["retained_evidence_files"] = len(retainedRows)
 	_ = s.repos.Exports.SetProgress(ctx, gid, exportID, 95)
 
 	// Manifest last so we know the counts.
@@ -544,6 +572,46 @@ func (s *ExportService) copyAttachmentBlobs(ctx context.Context, zw *zip.Writer,
 			return err
 		}
 		_ = r.Close()
+	}
+	return nil
+}
+
+// copyRetainedEvidence uses the exact rows written to the archive. Unlike
+// optional active thumbnails, every retained file is required for a complete
+// backup: missing/unreadable bytes abort before the artifact is uploaded.
+func (s *ExportService) copyRetainedEvidence(ctx context.Context, zw *zip.Writer, gid uuid.UUID, rows []map[string]any) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	bucket, err := blob.OpenBucket(ctx, s.repos.Attachments.GetConnString())
+	if err != nil {
+		return err
+	}
+	defer func() { _ = bucket.Close() }()
+	for _, row := range rows {
+		id, _ := row["id"].(string)
+		key, _ := row["path"].(string)
+		prefix := gid.String() + "/dispositions/"
+		if _, err := uuid.Parse(id); err != nil || !strings.HasPrefix(key, prefix) || key == prefix || path.Clean(key) != key || strings.ContainsAny(key, "\\\x00") {
+			return fmt.Errorf("retained evidence %s has an invalid collection-owned path or ID", id)
+		}
+		r, err := bucket.NewReader(ctx, s.repos.Attachments.GetFullPath(key), nil)
+		if err != nil {
+			return fmt.Errorf("required retained evidence %s is missing or unreadable: %w", id, err)
+		}
+		w, err := zw.Create(retainedEvidenceDir + id)
+		if err != nil {
+			_ = r.Close()
+			return err
+		}
+		_, copyErr := io.Copy(w, r)
+		closeErr := r.Close()
+		if copyErr != nil {
+			return fmt.Errorf("read required retained evidence %s: %w", id, copyErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("close required retained evidence %s: %w", id, closeErr)
+		}
 	}
 	return nil
 }
@@ -779,7 +847,7 @@ func (s *ExportService) runImport(ctx context.Context, gid, userID, importID uui
 		s.publishImportFinished(gid)
 	}
 
-	// Precondition: no items (non-location entities) in this group. Default
+	// Precondition: no items or disposition history in this group. Default
 	// seeded locations/tags/entity_types are fine; we wipe them below before
 	// restoring.
 	ready, err := s.IsGroupReadyForImport(ctx, gid)
@@ -787,7 +855,7 @@ func (s *ExportService) runImport(ctx context.Context, gid, userID, importID uui
 		return fmt.Errorf("import precondition: %w", err)
 	}
 	if !ready {
-		return errors.New("import requires a collection with no items")
+		return errors.New("import requires a collection with no items or disposition history")
 	}
 
 	// Stream the upload to a temp file so we can use archive/zip's seek API.
@@ -833,18 +901,22 @@ func (s *ExportService) runImport(ctx context.Context, gid, userID, importID uui
 	if mf.SchemaVersion != ExportSchemaVersion {
 		return fmt.Errorf("unsupported schema version %d (this server expects %d)", mf.SchemaVersion, ExportSchemaVersion)
 	}
+	if err := validateRetainedImport(zr, mf); err != nil {
+		return err
+	}
 	// Progress budget: 0–5% download + manifest, ~5–80% reserved for the DB
 	// phase (reported once after commit because intermediate setProgress
 	// calls would deadlock on SQLite — the write tx holds the single
-	// writer lock and ent's pool can't take it), 80–95% per-file blob
+	// writer lock and ent's pool can't take it), 80–95% per-file active blob
 	// restore, 95–100% finalization.
 	setProgress(5)
 
 	// All DB work — the seed wipe, every row insert, and the deferred FK
 	// patches — runs in a single tx so the group never sits in a half-imported
 	// state. If anything below fails, the deferred Rollback unwinds the wipe
-	// too. Blob uploads and bus notifications run only after Commit because
-	// (a) blobs are not transactional, and (b) restoreAttachmentBlobs needs to
+	// too. Required retained evidence is staged before Commit with explicit
+	// cleanup on failure. Active blob uploads and bus notifications run after
+	// Commit because restoreAttachmentBlobs needs to
 	// look up rows via the ent client, which uses its own pool and would not
 	// see uncommitted writes under Postgres READ COMMITTED.
 	tx, err := s.db.Sql().BeginTx(ctx, nil)
@@ -852,6 +924,30 @@ func (s *ExportService) runImport(ctx context.Context, gid, userID, importID uui
 		return fmt.Errorf("begin import tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// Serialize restores on PostgreSQL; SQLite's write lock rejects competing
+	// writers. Recheck history/items inside the transaction so a second restore
+	// cannot erase a just-committed history-only import.
+	if s.dialect == "postgres" {
+		var lockedID string
+		if err := tx.QueryRowContext(ctx, "SELECT id FROM groups WHERE id = $1 FOR UPDATE", gid.String()).Scan(&lockedID); err != nil {
+			return fmt.Errorf("lock import collection: %w", err)
+		}
+	}
+	var existing int
+	q := "SELECT (SELECT COUNT(*) FROM dispositions WHERE group_id = ?) + (SELECT COUNT(*) FROM entities WHERE group_entities = ? AND entity_type_entities IN (SELECT id FROM entity_types WHERE is_location = "
+	if s.dialect == "postgres" {
+		q += "false"
+	} else {
+		q += "0"
+	}
+	q += "))"
+	if err := tx.QueryRowContext(ctx, rebindPlaceholders(q, s.dialect), gid.String(), gid.String()).Scan(&existing); err != nil {
+		return err
+	}
+	if existing > 0 {
+		return errors.New("import requires a collection with no items or disposition history")
+	}
 
 	// Wipe the seeded defaults (locations, tags, entity_types, notifiers,
 	// etc.) so the imported collection isn't mixed with the auto-created
@@ -866,6 +962,23 @@ func (s *ExportService) runImport(ctx context.Context, gid, userID, importID uui
 		return err
 	}
 
+	// Retained bytes use fresh, record-owned keys. Stage them while the row
+	// transaction is open, and remove every staged key if any later step fails.
+	staged, err := s.stageRetainedImport(ctx, tx, zr, idMap["disposition_attachments"])
+	complete := false
+	defer func() {
+		if !complete {
+			cleanupCtx := context.WithoutCancel(ctx)
+			for _, key := range staged {
+				if err := bucket.Delete(cleanupCtx, s.repos.Attachments.GetFullPath(key)); err != nil {
+					log.Error().Err(err).Str("key", key).Msg("remove staged retained evidence")
+				}
+			}
+		}
+	}()
+	if err != nil {
+		return fmt.Errorf("restore retained evidence: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit import: %w", err)
 	}
@@ -888,11 +1001,12 @@ func (s *ExportService) runImport(ctx context.Context, gid, userID, importID uui
 		// retry. Wipe the freshly-imported rows so the group goes back to its
 		// pre-import (empty) state. Successfully uploaded blobs are left on
 		// disk; on retry the same content hashes will write to the same paths.
-		if werr := wipeGroup(ctx, s.db.Sql(), s.dialect, gid); werr != nil {
+		if werr := s.rollbackImportedRows(context.WithoutCancel(ctx), gid); werr != nil {
 			log.Err(werr).Stringer("gid", gid).Msg("import job: blob restore failed and rollback wipe also failed; group left in partially imported state")
 		}
 		return fmt.Errorf("restore attachments: %w", err)
 	}
+	complete = true
 	setProgress(95)
 
 	// Notify the frontend that lots of things just appeared.
@@ -1296,7 +1410,7 @@ func (s *ExportService) replayImportRows(ctx context.Context, tx *sql.Tx, zr *zi
 	}
 	var deferred []deferredUpdate
 
-	for _, spec := range exportTables {
+	for _, spec := range append(append([]tableSpec{}, exportTables...), dispositionExportTables...) {
 		rows, err := readTableJSON(zr, spec.name+".json")
 		if err != nil {
 			return nil, fmt.Errorf("read %s.json: %w", spec.name, err)
@@ -1403,6 +1517,11 @@ func remapImportRow(
 			return "", err
 		}
 	}
+	if spec.name == "disposition_attachments" {
+		if err := rewriteRetainedPath(row, srcGroupID, gid); err != nil {
+			return "", err
+		}
+	}
 	return newID, nil
 }
 
@@ -1419,6 +1538,9 @@ func rewriteAttachmentPath(row map[string]any, srcGroupID, dstGroupID uuid.UUID)
 		return fmt.Errorf("attachment row has empty/non-string path")
 	}
 	cleanPath := path.Clean(str)
+	if cleanPath != str || strings.ContainsAny(str, "\\\x00") {
+		return fmt.Errorf("invalid attachment path %q", str)
+	}
 	srcPrefix := srcGroupID.String() + "/documents/"
 	if !strings.HasPrefix(cleanPath, srcPrefix) {
 		return fmt.Errorf("attachment path %q does not live under source group's documents prefix", str)
@@ -1439,8 +1561,9 @@ func rewriteAttachmentPath(row map[string]any, srcGroupID, dstGroupID uuid.UUID)
 // Reusing exportTables means new tables are wiped automatically once they're
 // added to the export schema — no separate list to keep in sync.
 func wipeGroup(ctx context.Context, db sqlExecer, dialect string, gid uuid.UUID) error {
-	for i := len(exportTables) - 1; i >= 0; i-- {
-		spec := exportTables[i]
+	tables := append(append([]tableSpec{}, exportTables...), dispositionExportTables...)
+	for i := len(tables) - 1; i >= 0; i-- {
+		spec := tables[i]
 		if spec.scope == "" {
 			continue
 		}

@@ -10,7 +10,7 @@ describe("user should be able to create an item and add an attachment", () => {
   let increment = 0;
   /**
    * useLocation sets up a location resource for testing, and returns a function
-   * that can be used to delete the location from the backend server.
+   * that can be used to offboard the location and its descendants.
    */
   async function useLocation(api: UserClient): Promise<[EntityOut, () => Promise<void>]> {
     // Locations must carry the group's location entity type; without an
@@ -30,8 +30,15 @@ describe("user should be able to create an item and add an attachment", () => {
     increment++;
 
     const cleanup = async () => {
-      const { response } = await api.items.deleteLocation(data.id);
-      expect(response.status).toBe(204);
+      const preview = await api.items.previewOffboarding(data.id);
+      expect(preview.response.status).toBe(200);
+      const { response } = await api.items.offboard(data.id, {
+        confirmation: preview.data.confirmation,
+        disposition: "destroyed",
+        date: "2026-10-09",
+        notes: "Test cleanup",
+      });
+      expect(response.status).toBe(200);
     };
 
     return [data, cleanup];
@@ -68,7 +75,8 @@ describe("user should be able to create an item and add an attachment", () => {
     const resp = await api.items.attachments.delete(data.id, data.attachments[0]!.id);
     expect(resp.response.status).toBe(204);
 
-    api.items.delete(item.id);
+    // The legacy removal endpoint cannot bypass disposition recording.
+    expect((await api.items.delete(item.id)).status).toBe(409);
     await cleanup();
   });
 
@@ -124,7 +132,7 @@ describe("user should be able to create an item and add an attachment", () => {
       expect(item3.fields[i]?.numberValue).toBe(itemUpdate.fields[i]!.numberValue);
     }
 
-    cleanup();
+    await cleanup();
   });
 
   test("users should be able to create and few maintenance logs for an item", async () => {
@@ -161,7 +169,7 @@ describe("user should be able to create an item and add an attachment", () => {
       expect(data).toHaveLength(maintenanceEntries.length);
     }
 
-    cleanup();
+    await cleanup();
   });
 
   test("full path of item should be retrievable", async () => {
@@ -200,7 +208,7 @@ describe("user should be able to create an item and add an attachment", () => {
     expect(names).toHaveLength(locations.length + 1);
     expect(names).toEqual([...locations, item.name]);
 
-    cleanup();
+    await cleanup();
   });
 
   test("child items sync their location to their parent", async () => {

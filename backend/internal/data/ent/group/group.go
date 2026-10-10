@@ -39,6 +39,8 @@ const (
 	EdgeEntityTemplates = "entity_templates"
 	// EdgeExports holds the string denoting the exports edge name in mutations.
 	EdgeExports = "exports"
+	// EdgeDispositions holds the string denoting the dispositions edge name in mutations.
+	EdgeDispositions = "dispositions"
 	// EdgeUserGroups holds the string denoting the user_groups edge name in mutations.
 	EdgeUserGroups = "user_groups"
 	// Table holds the table name of the group in the database.
@@ -97,6 +99,13 @@ const (
 	ExportsInverseTable = "exports"
 	// ExportsColumn is the table column denoting the exports relation/edge.
 	ExportsColumn = "group_id"
+	// DispositionsTable is the table that holds the dispositions relation/edge.
+	DispositionsTable = "dispositions"
+	// DispositionsInverseTable is the table name for the Disposition entity.
+	// It exists in this package in order to avoid circular dependency with the "disposition" package.
+	DispositionsInverseTable = "dispositions"
+	// DispositionsColumn is the table column denoting the dispositions relation/edge.
+	DispositionsColumn = "group_id"
 	// UserGroupsTable is the table that holds the user_groups relation/edge.
 	UserGroupsTable = "user_groups"
 	// UserGroupsInverseTable is the table name for the UserGroup entity.
@@ -286,6 +295,20 @@ func ByExports(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByDispositionsCount orders the results by dispositions count.
+func ByDispositionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDispositionsStep(), opts...)
+	}
+}
+
+// ByDispositions orders the results by dispositions terms.
+func ByDispositions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDispositionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUserGroupsCount orders the results by user_groups count.
 func ByUserGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -353,6 +376,13 @@ func newExportsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ExportsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ExportsTable, ExportsColumn),
+	)
+}
+func newDispositionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DispositionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DispositionsTable, DispositionsColumn),
 	)
 }
 func newUserGroupsStep() *sqlgraph.Step {

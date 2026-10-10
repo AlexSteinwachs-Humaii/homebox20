@@ -25,6 +25,20 @@ func NewReDate(dateStr string) ReReplace {
 	}
 }
 
+func offboardingInputContract(text string) string {
+	block := regexp.MustCompile(`(?s)export interface OffboardingRequest \{.*?\n\}`)
+	return block.ReplaceAllStringFunc(text, func(request string) string {
+		for _, replace := range []ReReplace{
+			NewReReplace(`date: Date \| string;`, "date: string;"),
+			NewReReplace(`notes: string;`, "notes?: string;"),
+			NewReReplace(`recipient: string;`, "recipient?: string;"),
+		} {
+			request = replace.Regex.ReplaceAllString(request, replace.Text)
+		}
+		return request
+	})
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Println("Please provide a file path as an argument")
@@ -70,6 +84,10 @@ func main() {
 		fmt.Printf("Replacing '%v' -> '%s'\n", replace.Regex, replace.Text)
 		text = replace.Regex.ReplaceAllString(text, replace.Text)
 	}
+
+	// Offboarding uses a calendar-date string, not a JSON timestamp. Unlike
+	// legacy output models, its notes/recipient are optional input fields.
+	text = offboardingInputContract(text)
 
 	err = os.WriteFile(path, []byte(text), 0644)
 	if err != nil {

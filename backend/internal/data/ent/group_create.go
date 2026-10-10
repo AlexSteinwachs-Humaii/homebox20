@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytemplate"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytype"
@@ -209,6 +210,21 @@ func (_c *GroupCreate) AddExports(v ...*Export) *GroupCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddExportIDs(ids...)
+}
+
+// AddDispositionIDs adds the "dispositions" edge to the Disposition entity by IDs.
+func (_c *GroupCreate) AddDispositionIDs(ids ...uuid.UUID) *GroupCreate {
+	_c.mutation.AddDispositionIDs(ids...)
+	return _c
+}
+
+// AddDispositions adds the "dispositions" edges to the Disposition entity.
+func (_c *GroupCreate) AddDispositions(v ...*Disposition) *GroupCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDispositionIDs(ids...)
 }
 
 // Mutation returns the GroupMutation object of the builder.
@@ -459,6 +475,22 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(export.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DispositionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   group.DispositionsTable,
+			Columns: []string{group.DispositionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(disposition.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

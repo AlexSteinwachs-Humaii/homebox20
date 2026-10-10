@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import EntityOffboardingDialog from "~/components/EntityOffboardingDialog.vue";
   import { useI18n } from "vue-i18n";
   import { toast } from "@/components/ui/sonner";
   import type { AnyDetail, Details } from "~~/components/global/DetailsSection/types";
@@ -59,22 +60,11 @@
     return data;
   });
 
-  const confirm = useConfirm();
+  const offboardingOpen = ref(false);
+  const offboardingEntity = () => location.value!;
 
-  async function confirmDelete() {
-    const { isCanceled } = await confirm.open(t("locations.location_items_delete_confirm"));
-    if (isCanceled) {
-      return;
-    }
-
-    const { error } = await api.items.deleteLocation(locationId.value);
-    if (error) {
-      toast.error(t("locations.toast.failed_delete_location"));
-      return;
-    }
-
-    toast.success(t("locations.toast.location_deleted"));
-    navigateTo("/locations");
+  function confirmDelete() {
+    offboardingOpen.value = true;
   }
 
   function openCreateItem() {
@@ -217,6 +207,7 @@
 </script>
 
 <template>
+  <EntityOffboardingDialog v-if="location" v-model:open="offboardingOpen" :entity="offboardingEntity()" />
   <div>
     <ItemImageDialog />
 
@@ -295,7 +286,12 @@
                   {{ $t("global.edit") }}
                 </span>
               </Button>
-              <Button variant="destructive" class="w-9 md:w-auto" @click="confirmDelete()">
+              <Button
+                variant="destructive"
+                class="w-9 md:w-auto"
+                :aria-label="$t('global.delete')"
+                @click="confirmDelete()"
+              >
                 <MdiDelete name="mdi-delete" />
                 <span class="hidden md:inline">
                   {{ $t("global.delete") }}

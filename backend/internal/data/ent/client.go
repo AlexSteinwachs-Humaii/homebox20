@@ -20,6 +20,8 @@ import (
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/authroles"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/authtokens"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/disposition"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/dispositionattachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entityfield"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entitytemplate"
@@ -49,6 +51,10 @@ type Client struct {
 	AuthRoles *AuthRolesClient
 	// AuthTokens is the client for interacting with the AuthTokens builders.
 	AuthTokens *AuthTokensClient
+	// Disposition is the client for interacting with the Disposition builders.
+	Disposition *DispositionClient
+	// DispositionAttachment is the client for interacting with the DispositionAttachment builders.
+	DispositionAttachment *DispositionAttachmentClient
 	// Entity is the client for interacting with the Entity builders.
 	Entity *EntityClient
 	// EntityField is the client for interacting with the EntityField builders.
@@ -92,6 +98,8 @@ func (c *Client) init() {
 	c.Attachment = NewAttachmentClient(c.config)
 	c.AuthRoles = NewAuthRolesClient(c.config)
 	c.AuthTokens = NewAuthTokensClient(c.config)
+	c.Disposition = NewDispositionClient(c.config)
+	c.DispositionAttachment = NewDispositionAttachmentClient(c.config)
 	c.Entity = NewEntityClient(c.config)
 	c.EntityField = NewEntityFieldClient(c.config)
 	c.EntityTemplate = NewEntityTemplateClient(c.config)
@@ -196,26 +204,28 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                  ctx,
-		config:               cfg,
-		APIKey:               NewAPIKeyClient(cfg),
-		Attachment:           NewAttachmentClient(cfg),
-		AuthRoles:            NewAuthRolesClient(cfg),
-		AuthTokens:           NewAuthTokensClient(cfg),
-		Entity:               NewEntityClient(cfg),
-		EntityField:          NewEntityFieldClient(cfg),
-		EntityTemplate:       NewEntityTemplateClient(cfg),
-		EntityType:           NewEntityTypeClient(cfg),
-		Export:               NewExportClient(cfg),
-		Group:                NewGroupClient(cfg),
-		GroupInvitationToken: NewGroupInvitationTokenClient(cfg),
-		MaintenanceEntry:     NewMaintenanceEntryClient(cfg),
-		Notifier:             NewNotifierClient(cfg),
-		PasswordResetTokens:  NewPasswordResetTokensClient(cfg),
-		Tag:                  NewTagClient(cfg),
-		TemplateField:        NewTemplateFieldClient(cfg),
-		User:                 NewUserClient(cfg),
-		UserGroup:            NewUserGroupClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		APIKey:                NewAPIKeyClient(cfg),
+		Attachment:            NewAttachmentClient(cfg),
+		AuthRoles:             NewAuthRolesClient(cfg),
+		AuthTokens:            NewAuthTokensClient(cfg),
+		Disposition:           NewDispositionClient(cfg),
+		DispositionAttachment: NewDispositionAttachmentClient(cfg),
+		Entity:                NewEntityClient(cfg),
+		EntityField:           NewEntityFieldClient(cfg),
+		EntityTemplate:        NewEntityTemplateClient(cfg),
+		EntityType:            NewEntityTypeClient(cfg),
+		Export:                NewExportClient(cfg),
+		Group:                 NewGroupClient(cfg),
+		GroupInvitationToken:  NewGroupInvitationTokenClient(cfg),
+		MaintenanceEntry:      NewMaintenanceEntryClient(cfg),
+		Notifier:              NewNotifierClient(cfg),
+		PasswordResetTokens:   NewPasswordResetTokensClient(cfg),
+		Tag:                   NewTagClient(cfg),
+		TemplateField:         NewTemplateFieldClient(cfg),
+		User:                  NewUserClient(cfg),
+		UserGroup:             NewUserGroupClient(cfg),
 	}, nil
 }
 
@@ -233,26 +243,28 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                  ctx,
-		config:               cfg,
-		APIKey:               NewAPIKeyClient(cfg),
-		Attachment:           NewAttachmentClient(cfg),
-		AuthRoles:            NewAuthRolesClient(cfg),
-		AuthTokens:           NewAuthTokensClient(cfg),
-		Entity:               NewEntityClient(cfg),
-		EntityField:          NewEntityFieldClient(cfg),
-		EntityTemplate:       NewEntityTemplateClient(cfg),
-		EntityType:           NewEntityTypeClient(cfg),
-		Export:               NewExportClient(cfg),
-		Group:                NewGroupClient(cfg),
-		GroupInvitationToken: NewGroupInvitationTokenClient(cfg),
-		MaintenanceEntry:     NewMaintenanceEntryClient(cfg),
-		Notifier:             NewNotifierClient(cfg),
-		PasswordResetTokens:  NewPasswordResetTokensClient(cfg),
-		Tag:                  NewTagClient(cfg),
-		TemplateField:        NewTemplateFieldClient(cfg),
-		User:                 NewUserClient(cfg),
-		UserGroup:            NewUserGroupClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		APIKey:                NewAPIKeyClient(cfg),
+		Attachment:            NewAttachmentClient(cfg),
+		AuthRoles:             NewAuthRolesClient(cfg),
+		AuthTokens:            NewAuthTokensClient(cfg),
+		Disposition:           NewDispositionClient(cfg),
+		DispositionAttachment: NewDispositionAttachmentClient(cfg),
+		Entity:                NewEntityClient(cfg),
+		EntityField:           NewEntityFieldClient(cfg),
+		EntityTemplate:        NewEntityTemplateClient(cfg),
+		EntityType:            NewEntityTypeClient(cfg),
+		Export:                NewExportClient(cfg),
+		Group:                 NewGroupClient(cfg),
+		GroupInvitationToken:  NewGroupInvitationTokenClient(cfg),
+		MaintenanceEntry:      NewMaintenanceEntryClient(cfg),
+		Notifier:              NewNotifierClient(cfg),
+		PasswordResetTokens:   NewPasswordResetTokensClient(cfg),
+		Tag:                   NewTagClient(cfg),
+		TemplateField:         NewTemplateFieldClient(cfg),
+		User:                  NewUserClient(cfg),
+		UserGroup:             NewUserGroupClient(cfg),
 	}, nil
 }
 
@@ -282,10 +294,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Attachment, c.AuthRoles, c.AuthTokens, c.Entity, c.EntityField,
-		c.EntityTemplate, c.EntityType, c.Export, c.Group, c.GroupInvitationToken,
-		c.MaintenanceEntry, c.Notifier, c.PasswordResetTokens, c.Tag, c.TemplateField,
-		c.User, c.UserGroup,
+		c.APIKey, c.Attachment, c.AuthRoles, c.AuthTokens, c.Disposition,
+		c.DispositionAttachment, c.Entity, c.EntityField, c.EntityTemplate,
+		c.EntityType, c.Export, c.Group, c.GroupInvitationToken, c.MaintenanceEntry,
+		c.Notifier, c.PasswordResetTokens, c.Tag, c.TemplateField, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -295,10 +307,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Attachment, c.AuthRoles, c.AuthTokens, c.Entity, c.EntityField,
-		c.EntityTemplate, c.EntityType, c.Export, c.Group, c.GroupInvitationToken,
-		c.MaintenanceEntry, c.Notifier, c.PasswordResetTokens, c.Tag, c.TemplateField,
-		c.User, c.UserGroup,
+		c.APIKey, c.Attachment, c.AuthRoles, c.AuthTokens, c.Disposition,
+		c.DispositionAttachment, c.Entity, c.EntityField, c.EntityTemplate,
+		c.EntityType, c.Export, c.Group, c.GroupInvitationToken, c.MaintenanceEntry,
+		c.Notifier, c.PasswordResetTokens, c.Tag, c.TemplateField, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -315,6 +327,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuthRoles.mutate(ctx, m)
 	case *AuthTokensMutation:
 		return c.AuthTokens.mutate(ctx, m)
+	case *DispositionMutation:
+		return c.Disposition.mutate(ctx, m)
+	case *DispositionAttachmentMutation:
+		return c.DispositionAttachment.mutate(ctx, m)
 	case *EntityMutation:
 		return c.Entity.mutate(ctx, m)
 	case *EntityFieldMutation:
@@ -973,6 +989,320 @@ func (c *AuthTokensClient) mutate(ctx context.Context, m *AuthTokensMutation) (V
 		return (&AuthTokensDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AuthTokens mutation op: %q", m.Op())
+	}
+}
+
+// DispositionClient is a client for the Disposition schema.
+type DispositionClient struct {
+	config
+}
+
+// NewDispositionClient returns a client for the Disposition from the given config.
+func NewDispositionClient(c config) *DispositionClient {
+	return &DispositionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `disposition.Hooks(f(g(h())))`.
+func (c *DispositionClient) Use(hooks ...Hook) {
+	c.hooks.Disposition = append(c.hooks.Disposition, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `disposition.Intercept(f(g(h())))`.
+func (c *DispositionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Disposition = append(c.inters.Disposition, interceptors...)
+}
+
+// Create returns a builder for creating a Disposition entity.
+func (c *DispositionClient) Create() *DispositionCreate {
+	mutation := newDispositionMutation(c.config, OpCreate)
+	return &DispositionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Disposition entities.
+func (c *DispositionClient) CreateBulk(builders ...*DispositionCreate) *DispositionCreateBulk {
+	return &DispositionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DispositionClient) MapCreateBulk(slice any, setFunc func(*DispositionCreate, int)) *DispositionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DispositionCreateBulk{err: fmt.Errorf("calling to DispositionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DispositionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DispositionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Disposition.
+func (c *DispositionClient) Update() *DispositionUpdate {
+	mutation := newDispositionMutation(c.config, OpUpdate)
+	return &DispositionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DispositionClient) UpdateOne(_m *Disposition) *DispositionUpdateOne {
+	mutation := newDispositionMutation(c.config, OpUpdateOne, withDisposition(_m))
+	return &DispositionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DispositionClient) UpdateOneID(id uuid.UUID) *DispositionUpdateOne {
+	mutation := newDispositionMutation(c.config, OpUpdateOne, withDispositionID(id))
+	return &DispositionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Disposition.
+func (c *DispositionClient) Delete() *DispositionDelete {
+	mutation := newDispositionMutation(c.config, OpDelete)
+	return &DispositionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DispositionClient) DeleteOne(_m *Disposition) *DispositionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DispositionClient) DeleteOneID(id uuid.UUID) *DispositionDeleteOne {
+	builder := c.Delete().Where(disposition.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DispositionDeleteOne{builder}
+}
+
+// Query returns a query builder for Disposition.
+func (c *DispositionClient) Query() *DispositionQuery {
+	return &DispositionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDisposition},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Disposition entity by its id.
+func (c *DispositionClient) Get(ctx context.Context, id uuid.UUID) (*Disposition, error) {
+	return c.Query().Where(disposition.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DispositionClient) GetX(ctx context.Context, id uuid.UUID) *Disposition {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryGroup queries the group edge of a Disposition.
+func (c *DispositionClient) QueryGroup(_m *Disposition) *GroupQuery {
+	query := (&GroupClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(disposition.Table, disposition.FieldID, id),
+			sqlgraph.To(group.Table, group.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, disposition.GroupTable, disposition.GroupColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAttachments queries the attachments edge of a Disposition.
+func (c *DispositionClient) QueryAttachments(_m *Disposition) *DispositionAttachmentQuery {
+	query := (&DispositionAttachmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(disposition.Table, disposition.FieldID, id),
+			sqlgraph.To(dispositionattachment.Table, dispositionattachment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, disposition.AttachmentsTable, disposition.AttachmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DispositionClient) Hooks() []Hook {
+	return c.hooks.Disposition
+}
+
+// Interceptors returns the client interceptors.
+func (c *DispositionClient) Interceptors() []Interceptor {
+	return c.inters.Disposition
+}
+
+func (c *DispositionClient) mutate(ctx context.Context, m *DispositionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DispositionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DispositionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DispositionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DispositionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Disposition mutation op: %q", m.Op())
+	}
+}
+
+// DispositionAttachmentClient is a client for the DispositionAttachment schema.
+type DispositionAttachmentClient struct {
+	config
+}
+
+// NewDispositionAttachmentClient returns a client for the DispositionAttachment from the given config.
+func NewDispositionAttachmentClient(c config) *DispositionAttachmentClient {
+	return &DispositionAttachmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `dispositionattachment.Hooks(f(g(h())))`.
+func (c *DispositionAttachmentClient) Use(hooks ...Hook) {
+	c.hooks.DispositionAttachment = append(c.hooks.DispositionAttachment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `dispositionattachment.Intercept(f(g(h())))`.
+func (c *DispositionAttachmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DispositionAttachment = append(c.inters.DispositionAttachment, interceptors...)
+}
+
+// Create returns a builder for creating a DispositionAttachment entity.
+func (c *DispositionAttachmentClient) Create() *DispositionAttachmentCreate {
+	mutation := newDispositionAttachmentMutation(c.config, OpCreate)
+	return &DispositionAttachmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DispositionAttachment entities.
+func (c *DispositionAttachmentClient) CreateBulk(builders ...*DispositionAttachmentCreate) *DispositionAttachmentCreateBulk {
+	return &DispositionAttachmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DispositionAttachmentClient) MapCreateBulk(slice any, setFunc func(*DispositionAttachmentCreate, int)) *DispositionAttachmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DispositionAttachmentCreateBulk{err: fmt.Errorf("calling to DispositionAttachmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DispositionAttachmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DispositionAttachmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DispositionAttachment.
+func (c *DispositionAttachmentClient) Update() *DispositionAttachmentUpdate {
+	mutation := newDispositionAttachmentMutation(c.config, OpUpdate)
+	return &DispositionAttachmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DispositionAttachmentClient) UpdateOne(_m *DispositionAttachment) *DispositionAttachmentUpdateOne {
+	mutation := newDispositionAttachmentMutation(c.config, OpUpdateOne, withDispositionAttachment(_m))
+	return &DispositionAttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DispositionAttachmentClient) UpdateOneID(id uuid.UUID) *DispositionAttachmentUpdateOne {
+	mutation := newDispositionAttachmentMutation(c.config, OpUpdateOne, withDispositionAttachmentID(id))
+	return &DispositionAttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DispositionAttachment.
+func (c *DispositionAttachmentClient) Delete() *DispositionAttachmentDelete {
+	mutation := newDispositionAttachmentMutation(c.config, OpDelete)
+	return &DispositionAttachmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DispositionAttachmentClient) DeleteOne(_m *DispositionAttachment) *DispositionAttachmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DispositionAttachmentClient) DeleteOneID(id uuid.UUID) *DispositionAttachmentDeleteOne {
+	builder := c.Delete().Where(dispositionattachment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DispositionAttachmentDeleteOne{builder}
+}
+
+// Query returns a query builder for DispositionAttachment.
+func (c *DispositionAttachmentClient) Query() *DispositionAttachmentQuery {
+	return &DispositionAttachmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDispositionAttachment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DispositionAttachment entity by its id.
+func (c *DispositionAttachmentClient) Get(ctx context.Context, id uuid.UUID) (*DispositionAttachment, error) {
+	return c.Query().Where(dispositionattachment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DispositionAttachmentClient) GetX(ctx context.Context, id uuid.UUID) *DispositionAttachment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryDisposition queries the disposition edge of a DispositionAttachment.
+func (c *DispositionAttachmentClient) QueryDisposition(_m *DispositionAttachment) *DispositionQuery {
+	query := (&DispositionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(dispositionattachment.Table, dispositionattachment.FieldID, id),
+			sqlgraph.To(disposition.Table, disposition.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, dispositionattachment.DispositionTable, dispositionattachment.DispositionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DispositionAttachmentClient) Hooks() []Hook {
+	return c.hooks.DispositionAttachment
+}
+
+// Interceptors returns the client interceptors.
+func (c *DispositionAttachmentClient) Interceptors() []Interceptor {
+	return c.inters.DispositionAttachment
+}
+
+func (c *DispositionAttachmentClient) mutate(ctx context.Context, m *DispositionAttachmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DispositionAttachmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DispositionAttachmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DispositionAttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DispositionAttachmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DispositionAttachment mutation op: %q", m.Op())
 	}
 }
 
@@ -2126,6 +2456,22 @@ func (c *GroupClient) QueryExports(_m *Group) *ExportQuery {
 			sqlgraph.From(group.Table, group.FieldID, id),
 			sqlgraph.To(export.Table, export.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, group.ExportsTable, group.ExportsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDispositions queries the dispositions edge of a Group.
+func (c *GroupClient) QueryDispositions(_m *Group) *DispositionQuery {
+	query := (&DispositionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(group.Table, group.FieldID, id),
+			sqlgraph.To(disposition.Table, disposition.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, group.DispositionsTable, group.DispositionsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3480,13 +3826,15 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Attachment, AuthRoles, AuthTokens, Entity, EntityField, EntityTemplate,
-		EntityType, Export, Group, GroupInvitationToken, MaintenanceEntry, Notifier,
-		PasswordResetTokens, Tag, TemplateField, User, UserGroup []ent.Hook
+		APIKey, Attachment, AuthRoles, AuthTokens, Disposition, DispositionAttachment,
+		Entity, EntityField, EntityTemplate, EntityType, Export, Group,
+		GroupInvitationToken, MaintenanceEntry, Notifier, PasswordResetTokens, Tag,
+		TemplateField, User, UserGroup []ent.Hook
 	}
 	inters struct {
-		APIKey, Attachment, AuthRoles, AuthTokens, Entity, EntityField, EntityTemplate,
-		EntityType, Export, Group, GroupInvitationToken, MaintenanceEntry, Notifier,
-		PasswordResetTokens, Tag, TemplateField, User, UserGroup []ent.Interceptor
+		APIKey, Attachment, AuthRoles, AuthTokens, Disposition, DispositionAttachment,
+		Entity, EntityField, EntityTemplate, EntityType, Export, Group,
+		GroupInvitationToken, MaintenanceEntry, Notifier, PasswordResetTokens, Tag,
+		TemplateField, User, UserGroup []ent.Interceptor
 	}
 )

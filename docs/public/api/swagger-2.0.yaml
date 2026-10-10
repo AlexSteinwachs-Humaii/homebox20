@@ -43,6 +43,28 @@ definitions:
       symbol:
         type: string
     type: object
+  disposition.Disposition:
+    enum:
+    - sold
+    - destroyed
+    - given_away
+    - donated
+    - lost_or_stolen
+    type: string
+    x-enum-varnames:
+    - DispositionSold
+    - DispositionDestroyed
+    - DispositionGivenAway
+    - DispositionDonated
+    - DispositionLostOrStolen
+  dispositionattachment.Type:
+    enum:
+    - photo
+    - receipt
+    type: string
+    x-enum-varnames:
+    - TypePhoto
+    - TypeReceipt
   ent.APIKey:
     properties:
       created_at:
@@ -184,6 +206,138 @@ definitions:
         allOf:
         - $ref: '#/definitions/ent.User'
         description: User holds the value of the user edge.
+    type: object
+  ent.Disposition:
+    properties:
+      asset_id:
+        description: AssetID holds the value of the "asset_id" field.
+        type: integer
+      created_at:
+        description: CreatedAt holds the value of the "created_at" field.
+        type: string
+      disposition:
+        allOf:
+        - $ref: '#/definitions/disposition.Disposition'
+        description: Disposition holds the value of the "disposition" field.
+      disposition_date:
+        description: DispositionDate holds the value of the "disposition_date" field.
+        type: string
+      edges:
+        allOf:
+        - $ref: '#/definitions/ent.DispositionEdges'
+        description: |-
+          Edges holds the relations/edges for other nodes in the graph.
+          The values are being populated by the DispositionQuery when eager-loading is set.
+      group_id:
+        description: GroupID holds the value of the "group_id" field.
+        type: string
+      id:
+        description: ID of the ent.
+        type: string
+      insured:
+        description: Insured holds the value of the "insured" field.
+        type: boolean
+      is_location:
+        description: IsLocation holds the value of the "is_location" field.
+        type: boolean
+      manufacturer:
+        description: Manufacturer holds the value of the "manufacturer" field.
+        type: string
+      model_number:
+        description: ModelNumber holds the value of the "model_number" field.
+        type: string
+      name:
+        description: Name holds the value of the "name" field.
+        type: string
+      notes:
+        description: Notes holds the value of the "notes" field.
+        type: string
+      parent_name:
+        description: ParentName holds the value of the "parent_name" field.
+        type: string
+      purchase_date:
+        description: PurchaseDate holds the value of the "purchase_date" field.
+        type: string
+      purchase_from:
+        description: PurchaseFrom holds the value of the "purchase_from" field.
+        type: string
+      purchase_price:
+        description: PurchasePrice holds the value of the "purchase_price" field.
+        type: number
+      quantity:
+        description: Quantity holds the value of the "quantity" field.
+        type: number
+      recipient:
+        description: Recipient holds the value of the "recipient" field.
+        type: string
+      recorder_id:
+        description: RecorderID holds the value of the "recorder_id" field.
+        type: string
+      recorder_name:
+        description: RecorderName holds the value of the "recorder_name" field.
+        type: string
+      serial_number:
+        description: SerialNumber holds the value of the "serial_number" field.
+        type: string
+      updated_at:
+        description: UpdatedAt holds the value of the "updated_at" field.
+        type: string
+      value:
+        description: Value holds the value of the "value" field.
+        type: number
+    type: object
+  ent.DispositionAttachment:
+    properties:
+      created_at:
+        description: CreatedAt holds the value of the "created_at" field.
+        type: string
+      disposition_id:
+        description: DispositionID holds the value of the "disposition_id" field.
+        type: string
+      edges:
+        allOf:
+        - $ref: '#/definitions/ent.DispositionAttachmentEdges'
+        description: |-
+          Edges holds the relations/edges for other nodes in the graph.
+          The values are being populated by the DispositionAttachmentQuery when eager-loading is set.
+      id:
+        description: ID of the ent.
+        type: string
+      mime_type:
+        description: MimeType holds the value of the "mime_type" field.
+        type: string
+      path:
+        description: Path holds the value of the "path" field.
+        type: string
+      title:
+        description: Title holds the value of the "title" field.
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/dispositionattachment.Type'
+        description: Type holds the value of the "type" field.
+      updated_at:
+        description: UpdatedAt holds the value of the "updated_at" field.
+        type: string
+    type: object
+  ent.DispositionAttachmentEdges:
+    properties:
+      disposition:
+        allOf:
+        - $ref: '#/definitions/ent.Disposition'
+        description: Disposition holds the value of the disposition edge.
+    type: object
+  ent.DispositionEdges:
+    properties:
+      attachments:
+        description: Attachments holds the value of the attachments edge.
+        items:
+          $ref: '#/definitions/ent.DispositionAttachment'
+        type: array
+      group:
+        allOf:
+        - $ref: '#/definitions/ent.Group'
+        description: Group holds the value of the group edge.
     type: object
   ent.Entity:
     properties:
@@ -564,6 +718,11 @@ definitions:
     type: object
   ent.GroupEdges:
     properties:
+      dispositions:
+        description: Dispositions holds the value of the dispositions edge.
+        items:
+          $ref: '#/definitions/ent.Disposition'
+        type: array
       entities:
         description: Entities holds the value of the entities edge.
         items:
@@ -1905,6 +2064,15 @@ definitions:
     required:
     - name
     type: object
+  repo.OffboardingPreview:
+    properties:
+      confirmation:
+        type: string
+      descendantCount:
+        type: integer
+      rootId:
+        type: string
+    type: object
   repo.PaginationResult-repo_EntitySummary:
     properties:
       items:
@@ -2128,6 +2296,45 @@ definitions:
         type: string
       version:
         type: string
+    type: object
+  services.OffboardingRequest:
+    properties:
+      confirmation:
+        type: string
+      date:
+        example: "2026-10-09"
+        type: string
+      disposition:
+        enum:
+        - sold
+        - destroyed
+        - given_away
+        - donated
+        - lost_or_stolen
+        type: string
+      notes:
+        maxLength: 10000
+        type: string
+      recipient:
+        maxLength: 1000
+        type: string
+      value:
+        minimum: 0
+        type: number
+        x-nullable: true
+    required:
+    - confirmation
+    - date
+    - disposition
+    type: object
+  services.OffboardingResult:
+    properties:
+      completed:
+        type: integer
+      recordIds:
+        items:
+          type: string
+        type: array
     type: object
   services.UserRegistration:
     properties:
@@ -2436,7 +2643,7 @@ paths:
       - Actions
   /v1/actions/wipe-inventory:
     post:
-      description: Deletes all items in the inventory
+      description: 'Rejected: offboard each item or place with a disposition instead.'
       parameters:
       - description: Wipe options
         in: body
@@ -2446,10 +2653,10 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "409":
+          description: Conflict
           schema:
-            $ref: '#/definitions/v1.ActionAmountResult'
+            $ref: '#/definitions/validate.ErrorResponse'
       security:
       - Bearer: []
       summary: Wipe Inventory
@@ -2565,6 +2772,8 @@ paths:
       - Entities
   /v1/entities/{id}:
     delete:
+      description: Use GET /v1/entities/{id}/offboarding and POST /v1/entities/{id}/offboarding
+        instead.
       parameters:
       - description: Entity ID
         in: path
@@ -2574,11 +2783,11 @@ paths:
       produces:
       - application/json
       responses:
-        "204":
-          description: No Content
+        "409":
+          description: Conflict
       security:
       - Bearer: []
-      summary: Delete Entity
+      summary: Reject disposition-free entity removal
       tags:
       - Entities
     get:
@@ -2885,6 +3094,76 @@ paths:
       summary: Create Maintenance Entry
       tags:
       - Item Maintenance
+  /v1/entities/{id}/offboarding:
+    get:
+      description: Available to any authenticated member of the entity's collection.
+        Confirmation covers the complete descendant tree.
+      parameters:
+      - description: Entity ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/repo.OffboardingPreview'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/validate.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Preview item or place offboarding
+      tags:
+      - Entities
+    post:
+      consumes:
+      - application/json
+      description: Any collection member may act. Requires a preview confirmation
+        and a calendar date (YYYY-MM-DD). Sold, given_away and donated require a recipient.
+        Notes may be empty; value may be omitted or zero. A changed tree returns 409
+        without mutation. Collection and recorder come from authentication, never
+        the body.
+      parameters:
+      - description: Entity ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Disposition and confirmed tree
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/services.OffboardingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.OffboardingResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/validate.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/validate.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/validate.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Offboard an item or place and all descendants
+      tags:
+      - Entities
   /v1/entities/{id}/path:
     get:
       parameters:

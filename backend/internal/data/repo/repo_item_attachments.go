@@ -24,6 +24,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/attachment"
+	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/dispositionattachment"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/group"
 	"github.com/sysadminsmedia/homebox/backend/internal/sys/config"
@@ -1071,4 +1072,27 @@ func (r *AttachmentRepo) processThumbnailFromImage(ctx context.Context, groupId 
 	}
 
 	return uploadResult, nil
+}
+
+// DeleteUnreferencedBlob protects all active and historical references, including
+// other collections and shared thumbnails. Call only after database commit.
+func (r *AttachmentRepo) DeleteUnreferencedBlob(ctx context.Context, p string) error {
+	active, err := r.db.Attachment.Query().Where(attachment.Path(p)).Exist(ctx)
+	if err != nil || active {
+		return err
+	}
+	retained, err := r.db.DispositionAttachment.Query().Where(dispositionattachment.Path(p)).Exist(ctx)
+	if err != nil || retained {
+		return err
+	}
+	bucket, err := blob.OpenBucket(ctx, r.GetConnString())
+	if err != nil {
+		return err
+	}
+	defer bucket.Close()
+	exists, err := bucket.Exists(ctx, r.fullPath(p))
+	if err != nil || !exists {
+		return err
+	}
+	return bucket.Delete(ctx, r.fullPath(p))
 }

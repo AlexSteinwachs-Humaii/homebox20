@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import EntityOffboardingDialog from "~/components/EntityOffboardingDialog.vue";
   import { useI18n } from "vue-i18n";
   import { toast } from "@/components/ui/sonner";
   import type { AnyDetail, Detail, Details } from "~~/components/global/DetailsSection/types";
@@ -552,22 +553,11 @@
     }
   }
 
-  const confirm = useConfirm();
+  const offboardingOpen = ref(false);
+  const offboardingEntity = () => item.value!;
 
-  async function deleteItem() {
-    const confirmed = await confirm.open(t("items.delete_item_confirm"));
-
-    if (!confirmed.data) {
-      return;
-    }
-
-    const { error } = await api.items.delete(itemId.value);
-    if (error) {
-      toast.error(t("items.toast.failed_delete_item"));
-      return;
-    }
-    toast.success(t("items.toast.item_deleted"));
-    navigateTo("/home");
+  function deleteItem() {
+    offboardingOpen.value = true;
   }
 
   async function saveAsTemplate() {
@@ -598,7 +588,7 @@
         item.value.warrantyExpires
       ),
       includePurchaseFields: !!(item.value.purchaseFrom || item.value.purchasePrice || item.value.purchaseDate),
-      includeSoldFields: !!(item.value.soldTo || item.value.soldPrice || item.value.soldDate),
+      includeSoldFields: false,
       fields: item.value.fields.map(field => ({
         id: NIL_UUID,
         name: field.name,
@@ -628,6 +618,7 @@
 </script>
 
 <template>
+  <EntityOffboardingDialog v-if="item" v-model:open="offboardingOpen" :entity="offboardingEntity()" />
   <BaseContainer v-if="item">
     <!-- set page title -->
     <Title>{{ item.name }}</Title>
@@ -714,7 +705,7 @@
               <!-- More actions dropdown -->
               <DropdownMenu>
                 <DropdownMenuTrigger as-child>
-                  <Button variant="outline" size="icon" :aria-label="$t('global.more_actions')">
+                  <Button variant="outline" size="icon" :aria-label="$t('offboarding.more_actions')">
                     <MdiDotsVertical class="size-5" />
                   </Button>
                 </DropdownMenuTrigger>

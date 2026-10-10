@@ -18,6 +18,12 @@ type AuthRoles func(*sql.Selector)
 // AuthTokens is the predicate function for authtokens builders.
 type AuthTokens func(*sql.Selector)
 
+// Disposition is the predicate function for disposition builders.
+type Disposition func(*sql.Selector)
+
+// DispositionAttachment is the predicate function for dispositionattachment builders.
+type DispositionAttachment func(*sql.Selector)
+
 // Entity is the predicate function for entity builders.
 type Entity func(*sql.Selector)
 

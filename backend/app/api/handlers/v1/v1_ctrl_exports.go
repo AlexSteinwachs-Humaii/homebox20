@@ -220,7 +220,7 @@ func (ctrl *V1Controller) HandleCollectionImport() errchain.HandlerFunc {
 			return validate.NewRequestError(errors.New("only group owners can import"), http.StatusForbidden)
 		}
 
-		// Precondition: no items yet. Default seeded locations/tags are fine —
+		// Precondition: no items or disposition history. Default seeded locations/tags are fine —
 		// the worker wipes them as part of the restore. Front-loading the
 		// check here gives instant 409 feedback for clearly-bad attempts.
 		ready, err := ctrl.svc.Exports.IsGroupReadyForImport(r.Context(), ctx.GID)
@@ -229,7 +229,7 @@ func (ctrl *V1Controller) HandleCollectionImport() errchain.HandlerFunc {
 		}
 		if !ready {
 			return validate.NewRequestError(
-				errors.New("import requires a collection with no user-created items, tags, templates, notifiers, or custom types"),
+				errors.New("import requires a collection with no disposition history, user-created items, tags, templates, notifiers, or custom types"),
 				http.StatusConflict)
 		}
 

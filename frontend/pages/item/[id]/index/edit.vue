@@ -1,5 +1,6 @@
 <!-- eslint-disable @typescript-eslint/no-explicit-any -->
 <script setup lang="ts">
+  import EntityOffboardingDialog from "~/components/EntityOffboardingDialog.vue";
   import { useI18n } from "vue-i18n";
   import { toast } from "@/components/ui/sonner";
   import type { ItemAttachment, EntityFieldData, EntityOut, EntityUpdate } from "~~/lib/api/types/data-contracts";
@@ -289,24 +290,7 @@
     },
   ];
 
-  const soldFields: FormField[] = [
-    {
-      type: "text",
-      label: "items.sold_to",
-      ref: "soldTo",
-      maxLength: 255,
-    },
-    {
-      type: "number",
-      label: "items.sold_price",
-      ref: "soldPrice",
-    },
-    {
-      type: "date",
-      label: "items.sold_at",
-      ref: "soldDate",
-    },
-  ];
+  const saleOpen = ref(false);
 
   // - Attachments
   const attDropZone = ref<HTMLDivElement>();
@@ -602,6 +586,7 @@
 </script>
 
 <template>
+  <EntityOffboardingDialog v-if="item" v-model:open="saleOpen" :entity="item" initial-disposition="sold" />
   <div v-if="item" class="pb-8">
     <Dialog :dialog-id="DialogID.AttachmentEdit">
       <DialogContent>
@@ -991,53 +976,9 @@
           </div>
         </Card>
 
-        <Card v-if="preferences.editorAdvancedView" class="overflow-visible shadow-xl">
-          <div class="px-4 py-5 sm:px-6">
-            <h3 class="text-lg font-medium leading-6">{{ $t("items.sold_details") }}</h3>
-          </div>
-          <div class="border-t sm:p-0">
-            <div v-for="field in soldFields" :key="field.ref" class="grid grid-cols-1 sm:divide-y">
-              <div class="border-b px-4 pb-4 pt-2 sm:px-6">
-                <FormTextArea
-                  v-if="field.type === 'textarea'"
-                  v-model="item[field.ref]"
-                  :label="$t(field.label)"
-                  inline
-                  :max-length="field.maxLength"
-                  :min-length="field.minLength"
-                />
-                <FormTextField
-                  v-else-if="field.type === 'text'"
-                  v-model="item[field.ref]"
-                  :label="$t(field.label)"
-                  inline
-                  :max-length="field.maxLength"
-                  :min-length="field.minLength"
-                />
-                <FormTextField
-                  v-else-if="field.type === 'number'"
-                  v-model.number="item[field.ref]"
-                  type="number"
-                  step="any"
-                  :min="field.min"
-                  :label="$t(field.label)"
-                  inline
-                />
-                <FormDatePicker
-                  v-else-if="field.type === 'date'"
-                  v-model="item[field.ref]"
-                  :label="$t(field.label)"
-                  inline
-                />
-                <FormCheckbox
-                  v-else-if="field.type === 'checkbox'"
-                  v-model="item[field.ref]"
-                  :label="$t(field.label)"
-                  inline
-                />
-              </div>
-            </div>
-          </div>
+        <Card class="p-4">
+          <p class="mb-3">{{ $t("offboarding.sale_help") }}</p>
+          <Button @click="saleOpen = true">{{ $t("offboarding.sell") }}</Button>
         </Card>
       </div>
     </section>

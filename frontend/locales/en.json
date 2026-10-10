@@ -1035,5 +1035,37 @@
             "restore_started": "Restore started — refresh shortly to see imported items.",
             "wipe_inventory_success": "Successfully wiped inventory. { results } items deleted."
         }
+    },
+    "offboarding": {
+        "more_actions": "More actions",
+        "title": "Remove from collection",
+        "description": "Record what happened to this item or place. The whole quantity and every descendant will leave the inventory.",
+        "outcome": "What happened?",
+        "outcomes": {
+            "sold": "Sold",
+            "destroyed": "Destroyed",
+            "given_away": "Given away",
+            "donated": "Donated",
+            "lost_or_stolen": "Lost or stolen"
+        },
+        "date": "Date",
+        "recipient": "Recipient (required)",
+        "value": "Value (optional)",
+        "notes": "Notes (optional)",
+        "loading": "Checking descendants…",
+        "preview_error": "Could not check the inventory tree. Check your connection and retry before confirming.",
+        "unavailable": "This item or place is no longer available in your collection. Cancel and refresh the inventory.",
+        "submit_error": "Could not complete removal. Your entries are preserved. Check the recipient, date and value, then retry. If it still fails, ask your administrator to check retained photo and receipt storage.",
+        "changed": "The inventory tree changed. Review the updated descendant count and confirm again. Your entries have been kept.",
+        "confirm_tree": "Remove “{name}” and {count} descendants from inventory, including all nested items and places.",
+        "retained": "This cannot be undone. A separate record for each item or place will be retained, with its primary photo and receipts. Other attachments and maintenance history will not be kept.",
+        "success": "Removed from inventory. {count} records retained.",
+        "retry": "Retry preview",
+        "review": "Review removal",
+        "back": "Edit details",
+        "confirm": "Confirm removal",
+        "submitting": "Removing…",
+        "sell": "Record sale and remove",
+        "sale_help": "Sale removes this item and all descendants. Unsaved edits on this page will not be saved."
     }
 }
