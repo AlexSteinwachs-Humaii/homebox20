@@ -751,6 +751,14 @@
     "languages.en@pirate": "English (Pirate)",
     "languages.sr-RS": "Serbian (Serbia)",
     "locations": {
+        "room": {
+            "inside": "Inside {name}",
+            "all_places": "All places",
+            "in_this_place": "In this place",
+            "all_things": "All things",
+            "no_children": "No child places yet.",
+            "no_things": "No things live directly in this place yet."
+        },
         "child_locations": "Child Locations",
         "collapse_tree": "Collapse Tree",
         "expand_tree": "Expand Tree",

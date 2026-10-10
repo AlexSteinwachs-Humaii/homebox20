@@ -4,12 +4,10 @@
   import type { AnyDetail, Details } from "~~/components/global/DetailsSection/types";
   import { filterZeroValues } from "~~/components/global/DetailsSection/types";
   import type { ItemAttachment } from "~~/lib/api/types/data-contracts";
-  import MdiPackageVariant from "~icons/mdi/package-variant";
   import MdiPlus from "~icons/mdi/plus";
   import MdiPencil from "~icons/mdi/pencil";
   import MdiDelete from "~icons/mdi/delete";
   import { useDialog } from "@/components/ui/dialog-provider";
-  import { Card } from "@/components/ui/card";
   import {
     Breadcrumb,
     BreadcrumbItem,
@@ -18,20 +16,16 @@
     BreadcrumbSeparator,
   } from "@/components/ui/breadcrumb";
   import { Button } from "@/components/ui/button";
-  import { Badge } from "@/components/ui/badge";
-  import { Separator } from "@/components/ui/separator";
   import { DialogID } from "~/components/ui/dialog-provider/utils";
   import BaseCard from "@/components/Base/Card.vue";
   import Currency from "~/components/global/Currency.vue";
-  import DateTime from "~/components/global/DateTime.vue";
   import LabelMaker from "~/components/global/LabelMaker.vue";
-  import Markdown from "~/components/global/Markdown.vue";
   import DetailsSection from "~/components/global/DetailsSection/DetailsSection.vue";
-  import BaseSectionHeader from "@/components/Base/SectionHeader.vue";
-  import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
   import ItemAttachmentsList from "~/components/Item/AttachmentsList.vue";
   import ItemImageDialog from "~/components/Item/ImageDialog.vue";
-  import LocationCard from "~/components/Location/Card.vue";
+  import PhotoCard from "~/components/Today/PhotoCard.vue";
+  import NightRow from "~/components/Item/NightRow.vue";
+  import MdiArrowRight from "~icons/mdi/arrow-right";
   import TagChip from "~/components/Tag/Chip.vue";
 
   definePageMeta({
@@ -48,16 +42,51 @@
 
   const locationId = computed<string>(() => route.params.id as string);
 
-  const { data: location } = useAsyncData(locationId.value, async () => {
-    const { data, error } = await api.items.getLocation(locationId.value);
-    if (error) {
-      toast.error(t("locations.toast.failed_load_location"));
-      navigateTo("/home");
-      return;
-    }
+  const { data: location } = useAsyncData(
+    () => `place-${locationId.value}`,
+    async () => {
+      const { data, error } = await api.items.getLocation(locationId.value);
+      if (error) {
+        toast.error(t("locations.toast.failed_load_location"));
+        navigateTo("/home");
+        return;
+      }
 
-    return data;
-  });
+      return data;
+    }
+  );
+
+  const { selectedCollection } = useCollections();
+  // Detail children do not carry counts. Use the existing location summaries and
+  // direct purchase-price statistics, never a sum of descendants.
+  const { data: roomSummary } = useAsyncData(
+    () => `place-summary-${selectedCollection.value?.id || ""}-${locationId.value}`,
+    async () => {
+      const [summaries, values, group] = await Promise.all([
+        api.items.getLocations(),
+        api.stats.locations(),
+        api.group.get(),
+      ]);
+      if (summaries.error || values.error) toast.error(t("locations.toast.failed_load_location"));
+      return {
+        places: summaries.error ? null : summaries.data,
+        values: values.error ? null : values.data,
+        name: group.error ? null : group.data.name,
+      };
+    }
+  );
+  const collectionName = computed(
+    () => roomSummary.value?.name || selectedCollection.value?.name || t("menu.collection")
+  );
+  const directCount = computed(() => roomSummary.value?.places?.find(p => p.id === locationId.value)?.itemCount);
+  const directValue = computed(() => placeValue(locationId.value));
+  function placeValue(id: string) {
+    if (!roomSummary.value?.values) return undefined;
+    return roomSummary.value.values.find(p => p.id === id)?.total ?? 0;
+  }
+  const childPlaces = computed(() =>
+    (location.value?.children || []).map(child => roomSummary.value?.places?.find(p => p.id === child.id) || child)
+  );
 
   const confirm = useConfirm();
 
@@ -192,7 +221,7 @@
     return ret;
   });
 
-  const { data: items, refresh: refreshItemList } = useAsyncData(
+  const { data: items } = useAsyncData(
     () => locationId.value + "_item_list",
     async () => {
       if (!locationId.value) {
@@ -224,6 +253,90 @@
       <!-- set page title -->
       <Title>{{ location.name }}</Title>
 
+      <header class="mb-6 space-y-3">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink as-child
+                ><NuxtLink to="/">{{ collectionName }}</NuxtLink></BreadcrumbLink
+              >
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <template v-if="location.parent">
+              <BreadcrumbItem>
+                <BreadcrumbLink as-child>
+                  <NuxtLink :to="`/location/${location.parent.id}`">{{ location.parent.name }}</NuxtLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+            </template>
+            <BreadcrumbItem>{{ location.name }}</BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <div class="min-w-0">
+            <h1 class="break-words text-4xl font-semibold tracking-tight">{{ location.name }}</h1>
+            <p v-if="location.description" class="mt-2 text-muted-foreground">{{ location.description }}</p>
+          </div>
+          <p class="flex items-center gap-2 text-primary" data-place-totals>
+            <span v-if="directCount !== undefined">{{ $t("home.place_items", { count: directCount }) }}</span>
+            <span v-if="directCount !== undefined && directValue !== undefined" aria-hidden="true">·</span>
+            <Currency v-if="directValue !== undefined" :amount="directValue" />
+          </p>
+        </div>
+      </header>
+
+      <section class="mb-6" aria-labelledby="inside-heading" data-child-places>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 id="inside-heading" class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {{ $t("locations.room.inside", { name: location.name }) }}
+          </h2>
+          <NuxtLink
+            to="/locations"
+            class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+          >
+            {{ $t("locations.room.all_places") }} <MdiArrowRight aria-hidden="true" />
+          </NuxtLink>
+        </div>
+        <div v-if="childPlaces.length" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <PhotoCard v-for="child in childPlaces" :key="child.id" :entity="child" place :value="placeValue(child.id)" />
+        </div>
+        <p v-else class="text-sm text-muted-foreground">{{ $t("locations.room.no_children") }}</p>
+      </section>
+
+      <section class="mb-6" aria-labelledby="things-heading" data-place-things>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 id="things-heading" class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {{ $t("locations.room.in_this_place") }}
+          </h2>
+          <NuxtLink
+            :to="{ path: '/items', query: { loc: location.id } }"
+            class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+          >
+            {{ $t("locations.room.all_things") }} <MdiArrowRight aria-hidden="true" />
+          </NuxtLink>
+        </div>
+        <ul v-if="items?.length" class="space-y-3">
+          <NightRow v-for="item in items" :key="item.id" :item="item" />
+        </ul>
+        <p v-else-if="items" class="text-sm text-muted-foreground">{{ $t("locations.room.no_things") }}</p>
+      </section>
+
+      <!-- Existing management controls and supporting details remain available. -->
+      <div class="mb-6 flex flex-wrap gap-2">
+        <LabelMaker :id="location.id" type="location" />
+        <Button @click="openCreateItem"
+          ><MdiPlus aria-hidden="true" />{{ $t("components.location.create_item") }}</Button
+        >
+        <Button variant="outline" @click="goToEdit"><MdiPencil aria-hidden="true" />{{ $t("global.edit") }}</Button>
+        <Button variant="destructive" @click="confirmDelete"
+          ><MdiDelete aria-hidden="true" />{{ $t("global.delete") }}</Button
+        >
+      </div>
+      <div v-if="location.tags?.length" class="mb-4 flex flex-wrap gap-1">
+        <TagChip v-for="tag in location.tags" :key="tag.id" :tag="tag" size="sm" />
+      </div>
+
       <!-- Photo gallery -->
       <section v-if="photos.length > 0" class="mb-4">
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
@@ -241,72 +354,6 @@
           </button>
         </div>
       </section>
-
-      <Card class="p-3">
-        <header :class="{ 'mb-2': location?.description }">
-          <div class="flex flex-wrap items-end gap-2">
-            <div
-              class="mb-auto flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground"
-            >
-              <MdiPackageVariant class="size-7" />
-            </div>
-            <div>
-              <Breadcrumb v-if="location?.parent">
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink as-child class="text-foreground/70 hover:underline">
-                      <NuxtLink :to="`/location/${location.parent.id}`">
-                        {{ location.parent.name }}
-                      </NuxtLink>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem> {{ location.name }} </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <h1 class="flex items-center gap-3 pb-1 text-2xl">
-                {{ location ? location.name : "" }}
-
-                <Badge v-if="location && location.totalPrice" variant="secondary">
-                  <Currency :amount="location.totalPrice" />
-                </Badge>
-              </h1>
-              <div class="flex flex-wrap gap-1 text-xs">
-                <div>
-                  {{ $t("global.created") }}
-                  <DateTime :date="location?.createdAt" />
-                </div>
-              </div>
-              <div v-if="location.tags && location.tags.length > 0" class="mt-2 flex flex-wrap gap-1">
-                <TagChip v-for="tag in location.tags" :key="tag.id" :tag="tag" size="sm" />
-              </div>
-            </div>
-            <div class="ml-auto mt-2 flex flex-wrap items-center justify-between gap-2">
-              <LabelMaker :id="location.id" type="location" />
-              <Button class="w-9 md:w-auto" @click="openCreateItem">
-                <MdiPlus name="mdi-plus" />
-                <span class="hidden md:inline">
-                  {{ $t("components.location.create_item") }}
-                </span>
-              </Button>
-              <Button class="w-9 md:w-auto" @click="goToEdit">
-                <MdiPencil name="mdi-pencil" />
-                <span class="hidden md:inline">
-                  {{ $t("global.edit") }}
-                </span>
-              </Button>
-              <Button variant="destructive" class="w-9 md:w-auto" @click="confirmDelete()">
-                <MdiDelete name="mdi-delete" />
-                <span class="hidden md:inline">
-                  {{ $t("global.delete") }}
-                </span>
-              </Button>
-            </div>
-          </div>
-        </header>
-        <Separator v-if="location && location.description" />
-        <Markdown v-if="location && location.description" class="mt-3 text-base" :source="location.description" />
-      </Card>
 
       <!-- Details (notes, custom fields) -->
       <BaseCard v-if="locationDetails.length > 0" class="mt-4">
@@ -340,19 +387,6 @@
           />
         </div>
       </BaseCard>
-
-      <!-- Items in this location -->
-      <section v-if="location && items">
-        <ItemViewSelectable :items="items" @refresh="refreshItemList" />
-      </section>
-
-      <!-- Child locations -->
-      <section v-if="location && location.children && location.children.length > 0" class="mt-6">
-        <BaseSectionHeader class="mb-5"> {{ $t("locations.child_locations") }} </BaseSectionHeader>
-        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <LocationCard v-for="child in location.children" :key="child.id" :location="child" />
-        </div>
-      </section>
     </div>
   </div>
 </template>
