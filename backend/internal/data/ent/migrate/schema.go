@@ -152,7 +152,7 @@ var (
 		{Name: "recorder_name", Type: field.TypeString},
 		{Name: "recipient", Type: field.TypeString, Default: ""},
 		{Name: "value", Type: field.TypeFloat64, Nullable: true},
-		{Name: "notes", Type: field.TypeString, Size: 1000, Default: ""},
+		{Name: "notes", Type: field.TypeString, Size: 10000, Default: ""},
 		{Name: "group_id", Type: field.TypeUUID},
 	}
 	// DispositionsTable holds the schema information for the "dispositions" table.

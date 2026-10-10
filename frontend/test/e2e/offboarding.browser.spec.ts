@@ -87,6 +87,12 @@ function zipEntries(data: Buffer): Record<string, Buffer> {
   return entries;
 }
 
+function requiredEntry(entries: Record<string, Buffer>, name: string): Buffer {
+  const entry = entries[name];
+  if (!entry) throw new Error(`Missing ZIP entry: ${name}`);
+  return entry;
+}
+
 async function completedJob(request: APIRequestContext, id: string) {
   await expect
     .poll(
@@ -113,17 +119,19 @@ async function exportZIP(request: APIRequestContext) {
 async function validateHistoryRestore(request: APIRequestContext, disposition: string, notes: string) {
   const source = await exportZIP(request);
   const entries = zipEntries(source.data);
-  const records = JSON.parse(entries["dispositions.json"].toString());
+  const records = JSON.parse(requiredEntry(entries, "dispositions.json").toString());
   expect(records).toHaveLength(3);
   for (const row of records) expect(row).toMatchObject({ disposition, notes, recorder_name: "Member", quantity: 2.5 });
   expect(records.some((row: { is_location: boolean | number }) => !!row.is_location)).toBe(true);
   expect(
-    JSON.parse(entries["entities.json"].toString()).some((row: { name: string }) => row.name === "Nested item")
+    JSON.parse(requiredEntry(entries, "entities.json").toString()).some(
+      (row: { name: string }) => row.name === "Nested item"
+    )
   ).toBe(false);
-  const retained = JSON.parse(entries["disposition_attachments.json"].toString());
+  const retained = JSON.parse(requiredEntry(entries, "disposition_attachments.json").toString());
   expect(retained).toHaveLength(2);
   for (const file of retained) {
-    expect(entries[`disposition_attachments/${file.id}`].toString()).toBe(`retained-${file.type}`);
+    expect(requiredEntry(entries, `disposition_attachments/${file.id}`).toString()).toBe(`retained-${file.type}`);
   }
   const email = `restore-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const password = "Offboarding-restore-test-42!";
@@ -141,7 +149,7 @@ async function validateHistoryRestore(request: APIRequestContext, disposition: s
   expect(imported.status()).toBe(202);
   await completedJob(request, (await imported.json()).id);
   const restored = zipEntries((await exportZIP(request)).data);
-  const restoredRecords = JSON.parse(restored["dispositions.json"].toString());
+  const restoredRecords = JSON.parse(requiredEntry(restored, "dispositions.json").toString());
   expect(restoredRecords).toHaveLength(3);
   for (const row of records) {
     const got = restoredRecords.find((candidate: { name: string }) => candidate.name === row.name);
@@ -151,18 +159,18 @@ async function validateHistoryRestore(request: APIRequestContext, disposition: s
       expect(got[key]).toEqual(row[key]);
   }
   expect(
-    JSON.parse(restored["entities.json"].toString())
+    JSON.parse(requiredEntry(restored, "entities.json").toString())
       .map((row: { name: string }) => row.name)
       .sort()
   ).toEqual(
-    JSON.parse(entries["entities.json"].toString())
+    JSON.parse(requiredEntry(entries, "entities.json").toString())
       .map((row: { name: string }) => row.name)
       .sort()
   );
-  const restoredFiles = JSON.parse(restored["disposition_attachments.json"].toString());
+  const restoredFiles = JSON.parse(requiredEntry(restored, "disposition_attachments.json").toString());
   expect(restoredFiles).toHaveLength(2);
   for (const file of restoredFiles)
-    expect(restored[`disposition_attachments/${file.id}`].toString()).toBe(`retained-${file.type}`);
+    expect(requiredEntry(restored, `disposition_attachments/${file.id}`).toString()).toBe(`retained-${file.type}`);
   // History alone prevents a second destructive restore.
   expect(
     (
@@ -322,3 +330,31 @@ test("mobile keyboard controls, validation, failure preservation and repeat guar
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   expect((await request.get(`/api/v1/entities/${root.id}`)).status()).toBe(200);
 });
+
+for (const width of [1280, 390]) {
+  test(`long notes wrap and survive removal/restore at ${width}px`, async ({ page, request }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const { root } = await setup(page, request);
+    await openRemoval(page, root);
+    const notes = "N".repeat(10000);
+    await page.getByLabel("Notes (optional)").fill(notes);
+    await page.getByRole("button", { name: "Review removal" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: "Remove from collection" })).toBeVisible();
+    expect(
+      await dialog.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return element.scrollWidth <= element.clientWidth + 1 && box.left >= 0 && box.right <= innerWidth;
+      })
+    ).toBe(true);
+    await expect(
+      dialog.getByText(`Remove “${root.name}” and 2 descendants`, {
+        exact: false,
+      })
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: "Confirm removal" }).click();
+    await expect(page).toHaveURL(/\/home$/);
+    expect((await request.get(`/api/v1/entities/${root.id}`)).status()).toBe(404);
+    await validateHistoryRestore(request, "destroyed", notes);
+  });
+}

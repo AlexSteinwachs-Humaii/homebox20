@@ -39,7 +39,7 @@ func (Disposition) Fields() []ent.Field {
 		field.String("recorder_name").NotEmpty().Immutable(),
 		field.String("recipient").Default("").Immutable(),
 		field.Float("value").Optional().Nillable().Immutable(),
-		field.String("notes").Default("").MaxLen(1000).Immutable(),
+		field.String("notes").Default("").MaxRuneLen(10000).Immutable(),
 	}
 }
 

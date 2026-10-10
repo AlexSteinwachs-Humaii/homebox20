@@ -73,7 +73,14 @@ func TestOffboardingMemberAPI(t *testing.T) {
 		var preview repo.OffboardingPreview
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &preview))
 		require.Equal(t, 1, preview.DescendantCount)
-		body := `{"confirmation":"` + preview.Confirmation + `","disposition":"destroyed","date":"2026-10-09","notes":"","value":0,"groupId":"` + other.ID.String() + `","recorderId":"` + uuid.NewString() + `","descendantCount":0}`
+		// Exercise both the reproduced failure and the supported upper boundary
+		// through the handler, transaction, and persisted descendant snapshots.
+		notes := strings.Repeat("N", 1001)
+		if place {
+			// API validation counts characters, not UTF-8 bytes.
+			notes = strings.Repeat("界", 10000)
+		}
+		body := `{"confirmation":"` + preview.Confirmation + `","disposition":"destroyed","date":"2026-10-09","notes":"` + notes + `","value":0,"groupId":"` + other.ID.String() + `","recorderId":"` + uuid.NewString() + `","descendantCount":0}`
 		_, err = call(ctrl.HandleOffboardingComplete(), "POST", root.ID, body, other.ID)
 		status(err, http.StatusNotFound)
 		for _, invalidBody := range []string{
@@ -81,6 +88,7 @@ func TestOffboardingMemberAPI(t *testing.T) {
 			strings.Replace(body, `"destroyed"`, `"sold"`, 1),
 			strings.Replace(body, `"2026-10-09"`, `"2025-02-29"`, 1),
 			strings.Replace(body, `"value":0`, `"value":-1`, 1),
+			strings.Replace(body, `"notes":"`+notes+`"`, `"notes":"`+strings.Repeat("N", 10001)+`"`, 1),
 		} {
 			_, err = call(ctrl.HandleOffboardingComplete(), "POST", root.ID, invalidBody, group.ID)
 			status(err, http.StatusBadRequest)
@@ -116,6 +124,7 @@ func TestOffboardingMemberAPI(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, member.ID, record.RecorderID)
 			require.Equal(t, member.Name, record.RecorderName)
+			require.Equal(t, notes, record.Notes)
 			require.NotNil(t, record.Value)
 			require.Zero(t, *record.Value)
 			for _, file := range record.Edges.Attachments {

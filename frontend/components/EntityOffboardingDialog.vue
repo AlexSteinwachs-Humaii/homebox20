@@ -132,7 +132,7 @@
 <template>
   <Dialog :open="open" @update:open="changeOpen">
     <DialogContent
-      class="max-h-[90dvh] overflow-y-auto"
+      class="max-h-[90dvh] grid-cols-[minmax(0,1fr)] overflow-y-auto [overflow-wrap:anywhere]"
       :disable-close="busy"
       @escape-key-down="busy && $event.preventDefault()"
       @interact-outside="busy && $event.preventDefault()"
@@ -211,7 +211,7 @@
           <Button type="submit" :disabled="!preview || loading || busy">{{ t("offboarding.review") }}</Button>
         </div>
       </form>
-      <div v-else class="space-y-4">
+      <div v-else class="min-w-0 space-y-4">
         <p>{{ t("offboarding.confirm_tree", { name: entity.name, count: preview?.descendantCount }) }}</p>
         <p class="whitespace-pre-wrap break-words">
           {{ t(`offboarding.outcomes.${disposition}`) }} · {{ date }}<br />{{
