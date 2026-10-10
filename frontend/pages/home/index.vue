@@ -6,6 +6,13 @@
   import DateTime from "~/components/global/DateTime.vue";
   import { Button } from "@/components/ui/button";
   import MdiRefresh from "~icons/mdi/refresh";
+  import MdiPlus from "~icons/mdi/plus";
+  import MdiBarcode from "~icons/mdi/barcode";
+  import MdiMapMarkerOutline from "~icons/mdi/map-marker-outline";
+  import MdiArrowRight from "~icons/mdi/arrow-right";
+  import PhotoCard from "@/components/Today/PhotoCard.vue";
+  import { useDialog } from "@/components/ui/dialog-provider";
+  import { DialogID } from "@/components/ui/dialog-provider/utils";
 
   const { t } = useI18n();
   definePageMeta({ middleware: ["auth"] });
@@ -15,6 +22,8 @@
   const collectionName = computed(() => selectedCollection.value?.name || t("menu.collection"));
   const { count, needsYou, queue, pending: carePending, error: careError, refresh: refreshCare } = useCareCount();
   const { summary, pending, error, refresh } = useTodaySummary();
+  const { activity, pending: activityPending, error: activityError, refresh: refreshActivity } = useTodayActivity();
+  const { openDialog } = useDialog();
 </script>
 
 <template>
@@ -79,6 +88,53 @@
         <span class="block text-3xl font-semibold text-primary">{{ summary.withoutPhoto }}</span>
         <span class="mt-1 block text-sm text-muted-foreground">{{ t("home.need_photo") }}</span>
       </NuxtLink>
+    </section>
+    <div v-if="activityError" role="alert" class="space-y-3 rounded-xl border bg-card p-5">
+      <p>{{ t("home.activity_load_failed") }}</p>
+      <Button variant="outline" @click="refreshActivity()"><MdiRefresh />{{ t("care.retry") }}</Button>
+    </div>
+    <p v-else-if="activityPending && !activity" role="status" class="text-muted-foreground">
+      {{ t("global.loading") }}
+    </p>
+    <template v-else-if="activity">
+      <section aria-labelledby="today-continue" class="space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <h2 id="today-continue" class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            {{ t("home.continue") }}
+          </h2>
+          <NuxtLink to="/items" class="flex items-center gap-2 font-semibold text-primary hover:underline">
+            {{ t("home.all_things") }}<MdiArrowRight aria-hidden="true" />
+          </NuxtLink>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <PhotoCard v-for="item in activity.recent" :key="item.id" :entity="item" />
+        </div>
+      </section>
+      <section aria-labelledby="today-places" class="space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <h2 id="today-places" class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            {{ t("home.places") }}
+          </h2>
+          <NuxtLink to="/locations" class="flex items-center gap-2 font-semibold text-primary hover:underline">
+            {{ t("home.all_places") }}<MdiArrowRight aria-hidden="true" />
+          </NuxtLink>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <PhotoCard v-for="place in activity.places" :key="place.id" :entity="place" place :value="place.value" />
+        </div>
+      </section>
+    </template>
+
+    <section :aria-label="t('home.commands')" class="grid gap-3 md:grid-cols-3">
+      <Button @click="openDialog(DialogID.CreateEntity, { params: { baseType: 'item' } })">
+        <MdiPlus aria-hidden="true" />{{ t("home.add_item") }}
+      </Button>
+      <Button variant="outline" @click="openDialog(DialogID.Scanner)">
+        <MdiBarcode aria-hidden="true" />{{ t("home.scan_code") }}
+      </Button>
+      <Button variant="outline" @click="openDialog(DialogID.CreateEntity, { params: { baseType: 'location' } })">
+        <MdiMapMarkerOutline aria-hidden="true" />{{ t("home.add_place") }}
+      </Button>
     </section>
   </BaseContainer>
 </template>
