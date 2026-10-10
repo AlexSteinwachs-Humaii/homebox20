@@ -40,8 +40,12 @@ class AuthContext implements IAuthContext {
   private static readonly cookieAttachmentTokenKey = "hb.auth.attachment_token";
 
   private _user = shallowRef<UserOut>();
-  get user() { return this._user.value; }
-  set user(value: UserOut | undefined) { this._user.value = value; }
+  get user() {
+    return this._user.value;
+  }
+  set user(value: UserOut | undefined) {
+    this._user.value = value;
+  }
   private _token: CookieRef<string | null>;
   private _attachmentToken: CookieRef<string | null>;
 

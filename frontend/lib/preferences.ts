@@ -164,4 +164,3 @@ export function getChangedPreferences(
 
   return changedPreferences;
 }
-

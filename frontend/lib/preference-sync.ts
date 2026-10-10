@@ -21,25 +21,34 @@ export class PreferenceSync {
   private applying = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly io: {
-    read: () => LocationViewPreferences;
-    apply: (value: LocationViewPreferences) => void;
-    config: () => PreferenceSyncConfig;
-    fetch: () => Promise<Settings>;
-    save: (settings: Settings) => Promise<void>;
-    owner?: () => string | null;
-    setOwner?: (id: string | null) => void;
-  }) {}
+  constructor(
+    private readonly io: {
+      read: () => LocationViewPreferences;
+      apply: (value: LocationViewPreferences) => void;
+      config: () => PreferenceSyncConfig;
+      fetch: () => Promise<Settings>;
+      save: (settings: Settings) => Promise<void>;
+      owner?: () => string | null;
+      setOwner?: (id: string | null) => void;
+    }
+  ) {}
 
   private synced(value: LocationViewPreferences): Settings {
-    return Object.fromEntries(Object.entries(value).filter(([key]) =>
-      Object.hasOwn(DEFAULT_PREFERENCES, key) && this.io.config()[key as keyof LocationViewPreferences] !== false
-    ));
+    return Object.fromEntries(
+      Object.entries(value).filter(
+        ([key]) =>
+          Object.hasOwn(DEFAULT_PREFERENCES, key) && this.io.config()[key as keyof LocationViewPreferences] !== false
+      )
+    );
   }
 
   private apply(value: LocationViewPreferences) {
     this.applying = true;
-    try { this.io.apply(value); } finally { this.applying = false; }
+    try {
+      this.io.apply(value);
+    } finally {
+      this.applying = false;
+    }
   }
 
   setAccount(id: string | null | undefined) {
@@ -48,16 +57,27 @@ export class PreferenceSync {
     this.dispose();
     // Preserve anonymous legacy settings absent from the server, but never hydrate
     // another account using the previous account's cache or pending edits.
-    const reset = previousOwner && previousOwner !== id ? {
-      ...this.io.read(),
-      ...clone(this.synced(DEFAULT_PREFERENCES)),
-      ...(this.io.config().collectionId !== false ? { collectionId: null } : {}),
-      ...(this.io.config().tableHeaders !== false ? { tableHeaders: undefined } : {}),
-    } : { ...this.io.read(), theme: "claude" as const };
+    const reset =
+      previousOwner && previousOwner !== id
+        ? {
+            ...this.io.read(),
+            ...clone(this.synced(DEFAULT_PREFERENCES)),
+            ...(this.io.config().collectionId !== false ? { collectionId: null } : {}),
+            ...(this.io.config().tableHeaders !== false ? { tableHeaders: undefined } : {}),
+          }
+        : { ...this.io.read(), theme: "claude" as const };
     this.io.setOwner?.(id ?? null);
     this.apply(reset);
     if (!id) return;
-    this.session = { id, baseline: clone(reset), server: null, revision: 0, savedRevision: 0, refresh: true, running: false };
+    this.session = {
+      id,
+      baseline: clone(reset),
+      server: null,
+      revision: 0,
+      savedRevision: 0,
+      refresh: true,
+      running: false,
+    };
     void this.run(this.session);
   }
 
@@ -91,9 +111,9 @@ export class PreferenceSync {
           const settings = await this.io.fetch();
           if (this.session !== session) return;
           const changes = getChangedPreferences(session.baseline, this.io.read());
-          const syncedSettings = Object.fromEntries(Object.entries(settings).filter(([key]) =>
-            this.io.config()[key as keyof LocationViewPreferences] !== false
-          ));
+          const syncedSettings = Object.fromEntries(
+            Object.entries(settings).filter(([key]) => this.io.config()[key as keyof LocationViewPreferences] !== false)
+          );
           const next = mergeSyncedSettings(syncedSettings, this.io.read(), changes);
           session.baseline = clone(mergeSyncedSettings(syncedSettings, this.io.read()));
           session.server = settings;

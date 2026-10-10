@@ -6,7 +6,9 @@ export type { ViewType, DuplicateSettings, LocationViewPreferences, PreferenceSy
 
 let syncConfig: PreferenceSyncConfig = { itemDisplayView: false, shownMultiTabWarning: false };
 let syncInitialized = false;
-const results = useLocalStorage("homebox/preferences/location", structuredClone(DEFAULT_PREFERENCES), { mergeDefaults: true });
+const results = useLocalStorage("homebox/preferences/location", structuredClone(DEFAULT_PREFERENCES), {
+  mergeDefaults: true,
+});
 
 // Also handle startup without the early script (blocked script or old cached HTML).
 if (import.meta.client) {
@@ -31,17 +33,25 @@ export function useViewPreferencesSync() {
   const auth = useAuthContext();
   const sync = new PreferenceSync({
     read: () => results.value,
-    apply: value => { results.value = value; },
+    apply: value => {
+      results.value = value;
+    },
     config: () => syncConfig,
     // Cache ownership is not evidence of successful account hydration/migration.
     owner: () => {
-      try { return localStorage.getItem("homebox/preferences/owner"); } catch { return null; }
+      try {
+        return localStorage.getItem("homebox/preferences/owner");
+      } catch {
+        return null;
+      }
     },
     setOwner: id => {
       try {
         if (id) localStorage.setItem("homebox/preferences/owner", id);
         else localStorage.removeItem("homebox/preferences/owner");
-      } catch { /* In-memory identity still isolates accounts when storage is unavailable. */ }
+      } catch {
+        /* In-memory identity still isolates accounts when storage is unavailable. */
+      }
     },
     fetch: async () => {
       const { data, error } = await useUserApi().user.getSettings();
@@ -55,7 +65,11 @@ export function useViewPreferencesSync() {
   });
   watch(results, () => sync.changed(), { deep: true, flush: "sync" });
   // The cookie is a boolean, not an account identity. Wait for /self and watch its ID.
-  watch(() => auth.token ? auth.user?.id ?? null : null, id => sync.setAccount(id), { immediate: true, flush: "sync" });
+  watch(
+    () => (auth.token ? (auth.user?.id ?? null) : null),
+    id => sync.setAccount(id),
+    { immediate: true, flush: "sync" }
+  );
   onServerEvent(ServerEvent.UserMutation, () => sync.refresh());
 }
 
