@@ -217,6 +217,7 @@ func (r *UserRepository) createUserWithMembership(
 		SetName(usr.Name).
 		SetEmail(normalizeEmail(usr.Email)).
 		SetIsSuperuser(usr.IsSuperuser).
+		SetSettings(map[string]interface{}{"theme": "claude"}).
 		SetDefaultGroupID(usr.DefaultGroupID)
 
 	if usr.Password != nil {
@@ -394,6 +395,14 @@ func (r *UserRepository) GetSettings(ctx context.Context, uid uuid.UUID) (map[st
 	if err != nil {
 		recordSpanError(span, err)
 		return nil, err
+	}
+	// Match new-account defaults for missing settings without overwriting a
+	// saved alternate choice. Existing-account rollout is owned by Goose.
+	if usr.Settings == nil {
+		usr.Settings = make(map[string]interface{})
+	}
+	if theme, ok := usr.Settings["theme"]; !ok || theme == nil || theme == "" {
+		usr.Settings["theme"] = "claude"
 	}
 	span.SetAttributes(attribute.Int("settings.keys.count", len(usr.Settings)))
 	return usr.Settings, nil
