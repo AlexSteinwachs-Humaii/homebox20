@@ -566,6 +566,10 @@
         }
     },
     "items": {
+        "label_tab": "Label",
+        "quantity_decrease": "Decrease quantity",
+        "quantity_increase": "Increase quantity",
+        "warranty_ends_in": "Warranty ends in {days} days",
     "things": "Things",
     "photos_first": "In {collection} · photos first",
     "clear_filters": "Clear filters",
