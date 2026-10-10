@@ -4,6 +4,7 @@
   import type { AnyDetail, Detail, Details } from "~~/components/global/DetailsSection/types";
   import { filterZeroValues } from "~~/components/global/DetailsSection/types";
   import type { ItemAttachment } from "~~/lib/api/types/data-contracts";
+  import MdiPencil from "~icons/mdi/pencil";
   import MdiPackageVariant from "~icons/mdi/package-variant";
   import MdiPlus from "~icons/mdi/plus";
   import MdiMinus from "~icons/mdi/minus";
@@ -11,7 +12,6 @@
   import MdiPlusBoxMultipleOutline from "~icons/mdi/plus-box-multiple-outline";
   import MdiContentSaveEdit from "~icons/mdi/content-save-edit";
   import MdiDotsVertical from "~icons/mdi/dots-vertical";
-  import { Separator } from "@/components/ui/separator";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -59,6 +59,7 @@
 
   const itemId = computed<string>(() => route.params.id as string);
   const preferences = useViewPreferences();
+  const { selectedCollection } = useCollections();
 
   const temporaryDuplicateSettings = ref<DuplicateSettings>({
     copyMaintenance: preferences.value.duplicateSettings.copyMaintenance,
@@ -160,6 +161,16 @@
       }, [] as Photo[]) || []
     );
   });
+
+  // Prefer the designated cover photo, retaining the existing gallery order.
+  const primaryPhoto = computed(() => {
+    return photos.value.find(photo => photo.attachmentId === item.value?.imageId) || photos.value[0];
+  });
+  const photoCaption = computed(() => {
+    const attachment = item.value?.attachments.find(photo => photo.id === primaryPhoto.value?.attachmentId);
+    return attachment?.title || item.value?.description || "";
+  });
+  const placePath = computed(() => (fullpath.value || []).filter(part => part.id !== item.value?.id));
 
   const attachments = computed<FilteredAttachments>(() => {
     if (!item.value) {
@@ -653,95 +664,92 @@
     </Dialog>
 
     <section>
-      <Card class="p-3">
-        <header :class="{ 'mb-2': item.description }">
-          <div class="flex flex-wrap items-end gap-2">
-            <div
-              class="mb-auto flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground"
+      <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]" data-testid="item-record-header">
+        <Card class="overflow-hidden" data-testid="item-record-photo">
+          <template v-if="primaryPhoto">
+            <button
+              class="block w-full bg-secondary"
+              :aria-label="$t('items.photo')"
+              @click="openImageDialog(primaryPhoto, item.id)"
             >
-              <MdiPackageVariant class="size-7" />
+              <img class="aspect-[4/5] w-full object-contain" :src="primaryPhoto.originalSrc" :alt="item.name" />
+            </button>
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-card p-4">
+              <Markdown v-if="photoCaption" class="prose min-w-0 flex-1 text-sm" :source="photoCaption" />
+              <span class="shrink-0 text-sm font-semibold text-primary" data-testid="item-photo-asset-id">
+                {{ $t("items.asset_id") }}: {{ item.assetId }}
+              </span>
             </div>
-            <div>
-              <Breadcrumb v-if="fullpath && fullpath.length > 0">
-                <BreadcrumbList>
-                  <BreadcrumbItem v-for="(part, idx) in fullpath" :key="part.id">
-                    <BreadcrumbLink
-                      v-if="idx < fullpath.length - 1"
-                      as-child
-                      class="text-foreground/70 hover:underline"
-                    >
-                      <NuxtLink :to="`/${part.type}/${part.id}`">
-                        {{ part.name }}
-                      </NuxtLink>
-                    </BreadcrumbLink>
-                    <template v-else>
-                      {{ part.name }}
-                    </template>
-                    <BreadcrumbSeparator v-if="idx < fullpath.length - 1" :key="`sep-${part.id}`" />
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <h1 class="text-wrap pb-1 text-2xl">
-                {{ item ? item.name : "" }}
-              </h1>
-              <div class="flex flex-wrap gap-2 pb-1">
-                <TagChip v-for="tag in itemTags" :key="tag.id" :tag="tag" size="sm" :ancestors="tag.ancestors" />
-              </div>
-              <div class="flex flex-wrap gap-1 text-wrap text-xs">
-                <div>
-                  {{ $t("items.created_at") }}
-                  <DateTime :date="item?.createdAt" />
-                </div>
-                -
-                <div>
-                  {{ $t("items.updated_at") }}
-                  <DateTime :date="item?.updatedAt" />
-                </div>
-              </div>
-            </div>
-            <div class="ml-auto mt-2 flex flex-wrap items-center justify-between gap-2">
-              <LabelMaker
-                v-if="typeof item.assetId === 'string' && item.assetId != ''"
-                :id="item.assetId"
-                type="asset"
-              />
-              <LabelMaker v-else :id="item.id" type="item" />
-              <Button class="w-9 md:w-auto" :aria-label="$t('global.create_subitem')" @click="createSubitem">
-                <MdiPlus />
-                <span class="hidden md:inline">{{ $t("global.create_subitem") }}</span>
-              </Button>
+          </template>
+          <div v-else class="flex aspect-[4/5] items-center justify-center bg-card text-muted-foreground">
+            <MdiPackageVariant class="size-20" :aria-label="item.name" />
+          </div>
+        </Card>
 
-              <!-- More actions dropdown -->
-              <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                  <Button variant="outline" size="icon" :aria-label="$t('global.more_actions')">
-                    <MdiDotsVertical class="size-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-48">
-                  <DropdownMenuItem @click="handleDuplicateClick">
-                    <MdiPlusBoxMultipleOutline class="mr-2 size-4" />
-                    {{ $t("global.duplicate") }}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem @click="saveAsTemplate">
-                    <MdiContentSaveEdit class="mr-2 size-4" />
-                    {{ $t("components.template.save_as_template") }}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem class="text-destructive focus:text-destructive" @click="deleteItem">
-                    <MdiDelete class="mr-2 size-4" />
-                    {{ $t("global.delete") }}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+        <header class="min-w-0 space-y-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink as-child class="text-primary hover:underline">
+                  <NuxtLink to="/home">{{ selectedCollection?.name || $t("menu.collection") }}</NuxtLink>
+                </BreadcrumbLink>
+                <BreadcrumbSeparator v-if="placePath.length" />
+              </BreadcrumbItem>
+              <BreadcrumbItem v-for="(part, idx) in placePath" :key="part.id">
+                <BreadcrumbLink as-child class="text-primary hover:underline">
+                  <NuxtLink :to="`/${part.type}/${part.id}`">{{ part.name }}</NuxtLink>
+                </BreadcrumbLink>
+                <BreadcrumbSeparator v-if="idx < placePath.length - 1" />
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <h1 class="break-words text-3xl font-semibold lg:text-4xl">{{ item.name }}</h1>
+          <div v-if="!primaryPhoto" class="text-sm font-semibold text-primary" data-testid="item-record-asset-id">
+            {{ $t("items.asset_id") }}: {{ item.assetId }}
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <TagChip v-for="tag in itemTags" :key="tag.id" :tag="tag" size="sm" :ancestors="tag.ancestors" />
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button as-child>
+              <NuxtLink :to="`/item/${item.id}/edit`"><MdiPencil />{{ $t("global.edit") }}</NuxtLink>
+            </Button>
+            <Button variant="outline" @click="createSubitem"> <MdiPlus />{{ $t("global.create_subitem") }} </Button>
+            <LabelMaker v-if="item.assetId" :id="item.assetId" type="asset" />
+            <LabelMaker v-else :id="item.id" type="item" />
+            <!-- More actions dropdown -->
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="outline" size="icon" :aria-label="$t('global.more_actions')">
+                  <MdiDotsVertical class="size-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-48">
+                <DropdownMenuItem @click="handleDuplicateClick">
+                  <MdiPlusBoxMultipleOutline class="mr-2 size-4" />
+                  {{ $t("global.duplicate") }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="saveAsTemplate">
+                  <MdiContentSaveEdit class="mr-2 size-4" />
+                  {{ $t("components.template.save_as_template") }}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem class="text-destructive focus:text-destructive" @click="deleteItem">
+                  <MdiDelete class="mr-2 size-4" />
+                  {{ $t("global.delete") }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div v-if="item.description" class="prose max-w-full text-sm">
+            <Markdown :source="item.description" />
+          </div>
+          <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span>{{ $t("items.created_at") }} <DateTime :date="item.createdAt" /></span>
+            <span>{{ $t("items.updated_at") }} <DateTime :date="item.updatedAt" /></span>
           </div>
         </header>
-        <Separator v-if="item.description" />
-        <div v-if="item.description" class="prose max-w-full p-1">
-          <Markdown class="text-base" :source="item.description" />
-        </div>
-      </Card>
+      </div>
 
       <div class="mb-6 mt-3 flex flex-wrap items-center justify-between">
         <ButtonGroup>
