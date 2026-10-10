@@ -566,6 +566,12 @@
         }
     },
     "items": {
+    "things": "Things",
+    "photos_first": "In {collection} · photos first",
+    "clear_filters": "Clear filters",
+    "apply_filters": "Apply filters",
+    "remove_place_filter": "Remove place filter: {name}",
+    "remove_tag_filter": "Remove tag filter: {name}",
         "add": "Add",
         "advanced": "Advanced",
         "archived": "Archived",

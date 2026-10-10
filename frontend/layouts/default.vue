@@ -85,7 +85,11 @@
             class="sticky top-0 z-20 flex h-[var(--header-height-mobile)] flex-wrap items-center gap-2 border-b border-border bg-card p-2 sm:h-[var(--header-height)] sm:flex-nowrap sm:px-4"
           >
             <SidebarTrigger :label="$t('menu.navigation')" />
-            <form class="flex min-w-0 flex-1 items-center gap-2" role="search" @submit.prevent="triggerSearch">
+            <form
+              class="order-last flex w-full min-w-0 flex-none items-center gap-2 sm:order-none sm:w-auto sm:flex-1"
+              role="search"
+              @submit.prevent="triggerSearch"
+            >
               <MdiMagnify class="size-5 shrink-0 text-muted-foreground" />
               <Input
                 v-model:model-value="search"
@@ -255,12 +259,28 @@
     return data;
   });
 
+  const searchRoute = useRoute();
+  const isThingsSearch = computed(() => /^\/items\/?$/.test(searchRoute.path));
   const search = ref("");
+  watch(
+    () => [searchRoute.path, searchRoute.query.q],
+    () => {
+      const q = searchRoute.query.q;
+      search.value = isThingsSearch.value ? (Array.isArray(q) ? q[0] : q) || "" : "";
+    },
+    { immediate: true }
+  );
 
   const triggerSearch = () => {
-    if (search.value) {
-      navigateTo(`/items?q=${encodeURIComponent(search.value)}`);
-      search.value = "";
+    if (search.value || isThingsSearch.value) {
+      navigateTo({
+        path: "/items",
+        query: {
+          ...(isThingsSearch.value ? searchRoute.query : {}),
+          q: search.value || undefined,
+          page: undefined,
+        },
+      });
       // remove focus from input
       if (document.activeElement && "blur" in document.activeElement) {
         (document.activeElement as HTMLElement).blur();

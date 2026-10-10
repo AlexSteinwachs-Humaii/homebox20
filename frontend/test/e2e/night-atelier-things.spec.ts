@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page, type BrowserContext } from "@playwright/test";
 
 // Exercise the real search page and paging controls with deterministic API records.
-test("Things renders photo-first rows, keeps archived matches, and pages the collection", async ({ page, context }) => {
+async function mockCollection(page: Page, context: BrowserContext) {
   await context.addCookies([
     { name: "hb.auth.session", value: "true", url: test.info().project.use.baseURL! },
     { name: "hb.auth.attachment_token", value: "test-attachments", url: test.info().project.use.baseURL! },
@@ -19,6 +19,11 @@ test("Things renders photo-first rows, keeps archived matches, and pages the col
     else if (path === "/api/v1/care") json = { count: 0, needsYou: [], comingUp: [] };
     else if (path === "/api/v1/entities/tree")
       json = [{ id: "garage", name: "Garage", children: [{ id: "cabinet", name: "Tool cabinet", children: [] }] }];
+    else if (path === "/api/v1/tags")
+      json = [
+        { id: "tools", name: "Tools" },
+        { id: "power", name: "Power" },
+      ];
     else if (path === "/api/v1/entities" && url.searchParams.get("isLocation") === "true")
       json = { items: [{ id: "cabinet", name: "Tool cabinet" }], total: 1 };
     else if (path === "/api/v1/entities") {
@@ -53,6 +58,11 @@ test("Things renders photo-first rows, keeps archived matches, and pages the col
     await route.fulfill({ json });
   });
 
+  return requests;
+}
+
+test("Things renders photo-first rows, keeps archived matches, and pages the collection", async ({ page, context }) => {
+  const requests = await mockCollection(page, context);
   await page.goto("/items?q=drill");
   const main = page.locator("main");
   const rows = main.locator("[data-thing-row]");
@@ -113,4 +123,73 @@ test("Things renders photo-first rows, keeps archived matches, and pages the col
   await page.goto("/items");
   await expect(rows).toHaveCount(size);
   expect(requests.at(-1)!.searchParams.get("q") || "").toBe("");
+});
+
+test("Shell search shares the query and removable deep-linked filters", async ({ page, context }) => {
+  const requests = await mockCollection(page, context);
+  await page.goto("/items?q=drill&loc=cabinet&tag=tools&tag=power&fields=Voltage%3D18");
+  const search = page.getByRole("searchbox");
+  const main = page.locator("main");
+  await expect(main.getByRole("heading", { name: "Things", exact: true })).toBeVisible();
+  await expect(search).toHaveCount(1);
+  await expect(search).toHaveValue("drill");
+  const place = main.getByRole("button", { name: "Remove place filter: Tool cabinet" });
+  const tools = main.getByRole("button", { name: "Remove tag filter: Tools" });
+  const power = main.getByRole("button", { name: "Remove tag filter: Power" });
+  await expect(place).toBeVisible();
+  await expect(tools).toBeVisible();
+  await expect(power).toBeVisible();
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("parentIds")).toEqual(["cabinet"]);
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("tags")).toEqual(["tools", "power"]);
+
+  await search.fill("hammer");
+  await search.press("Enter");
+  await expect(search).toHaveValue("hammer");
+  await expect.poll(() => requests.at(-1)?.searchParams.get("q")).toBe("hammer");
+  await expect(place).toBeVisible();
+  await tools.click();
+  await expect(tools).toHaveCount(0);
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("tags")).toEqual(["power"]);
+  await expect(place).toBeVisible();
+  await page.goBack();
+  await expect(tools).toBeVisible();
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("tags")).toEqual(["tools", "power"]);
+  await page.goForward();
+  await expect(tools).toHaveCount(0);
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("tags")).toEqual(["power"]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(power).toBeVisible();
+  await expect(place).toBeVisible();
+  expect((await search.boundingBox())!.width).toBeGreaterThan(250);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: test.info().outputPath("things-chips-mobile.png"), fullPage: true });
+  await place.click();
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("parentIds")).toEqual([]);
+  await expect(power).toBeVisible();
+  await main.getByRole("button", { name: "Clear filters", exact: true }).click();
+  await expect(power).toHaveCount(0);
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("tags")).toEqual([]);
+  await expect.poll(() => requests.at(-1)?.searchParams.getAll("fields")).toEqual([]);
+  await expect(search).toHaveValue("hammer");
+  expect(new URL(page.url()).searchParams.has("loc")).toBe(false);
+  expect(new URL(page.url()).searchParams.has("tag")).toBe(false);
+  expect(new URL(page.url()).searchParams.has("fields")).toBe(false);
+
+  await search.fill("");
+  await search.press("Enter");
+  await expect.poll(() => requests.at(-1)?.searchParams.get("q") || "").toBe("");
+  await page.goBack();
+  await expect(search).toHaveValue("hammer");
+  await expect.poll(() => requests.at(-1)?.searchParams.get("q")).toBe("hammer");
+
+  // The same shell field also starts a search from another page.
+  await page.goto("/locations");
+  await search.fill("cordless drill");
+  await search.press("Enter");
+  await expect.poll(() => new URL(page.url()).pathname).toBe("/items");
+  await expect(search).toHaveValue("cordless drill");
+  await expect.poll(() => requests.at(-1)?.searchParams.get("q")).toBe("cordless drill");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(search).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

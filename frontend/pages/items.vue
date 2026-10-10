@@ -1,12 +1,13 @@
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
   import { toast } from "@/components/ui/sonner";
-  import { Input } from "~/components/ui/input";
   import type { EntitySummary, TagSummary } from "~~/lib/api/types/data-contracts";
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
-  import MdiLoading from "~icons/mdi/loading";
-  import MdiMagnify from "~icons/mdi/magnify";
+  import MdiClose from "~icons/mdi/close";
+  import MdiMapMarkerOutline from "~icons/mdi/map-marker-outline";
+  import MdiTagOutline from "~icons/mdi/tag-outline";
+  import MdiTune from "~icons/mdi/tune";
   import MdiDelete from "~icons/mdi/delete";
   import { Button } from "@/components/ui/button";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -34,7 +35,7 @@
   });
 
   useHead({
-    title: "HomeBox | " + t("global.items"),
+    title: "HomeBox | " + t("items.things"),
   });
 
   const searchLocked = ref(false);
@@ -137,7 +138,7 @@
     queryParamsInitialized.value = true;
     searchLocked.value = false;
 
-    const qFields = route.query.fields as string[];
+    const qFields = queryArray(route.query.fields);
     if (qFields) {
       fieldTuples.value = qFields.map(f => f.split("=") as [string, string]);
 
@@ -254,11 +255,26 @@
     }
   });
 
+  function queryArray(value: typeof route.query.q): string[] {
+    return (Array.isArray(value) ? value : value == null ? [] : [value]).filter(
+      (v): v is string => typeof v === "string"
+    );
+  }
+
+  // Route navigation (including shell search and browser Back) uses the same filters.
   watch(
-    () => useRoute().query.q,
-    (newV, oldV) => {
-      if (newV !== oldV) {
-        query.value = (newV as string) || "";
+    () => route.query,
+    params => {
+      query.value = queryArray(params.q)[0] || "";
+      page.value = Number(queryArray(params.page)[0]) || 1;
+      if (!queryParamsInitialized.value) return;
+      const loc = queryArray(params.loc);
+      const tag = queryArray(params.tag);
+      if (JSON.stringify(loc) !== JSON.stringify(locIDs.value)) {
+        selectedLocations.value = locations.value.filter(l => loc.includes(l.id));
+      }
+      if (JSON.stringify(tag) !== JSON.stringify(tagIDs.value)) {
+        selectedTags.value = tags.value.filter(t => tag.includes(t.id));
       }
     }
   );
@@ -371,33 +387,26 @@
 
   watchDebounced([page, pageSize, query, selectedTags, selectedLocations], search, { debounce: 250, maxWait: 1000 });
 
-  async function submit() {
-    // Set URL Params
-    const fields = [];
-    for (const t of fieldTuples.value) {
-      if (t[0] && t[1]) {
-        fields.push(`${t[0]}=${t[1]}`);
-      }
-    }
-
-    // Reset Pagination
+  async function clearFilters() {
+    selectedLocations.value = [];
+    selectedTags.value = [];
+    fieldTuples.value = [];
+    negateTags.value = false;
+    onlyWithoutPhoto.value = false;
+    onlyWithPhoto.value = false;
     page.value = 1;
-
-    // Perform Search
     await search();
   }
 
-  async function reset() {
-    // Set URL Params
-    const fields = [];
-    for (const t of fieldTuples.value) {
-      if (t[0] && t[1]) {
-        fields.push(`${t[0]}=${t[1]}`);
-      }
-    }
-
-    await search();
-  }
+  const hasFilters = computed(
+    () =>
+      selectedLocations.value.length ||
+      selectedTags.value.length ||
+      fieldTuples.value.length ||
+      negateTags.value ||
+      onlyWithoutPhoto.value ||
+      onlyWithPhoto.value
+  );
 
   const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 </script>
@@ -405,28 +414,55 @@
 <template>
   <BaseContainer>
     <div v-if="locations && tags">
-      <div class="flex flex-wrap items-end gap-4 md:flex-nowrap">
-        <div class="w-full">
-          <Input v-model:model-value="query" :placeholder="$t('global.search')" class="h-12" />
-          <div v-if="byAssetId" class="pl-2 pt-2 text-sm">
-            <p>{{ $t("items.query_id", { id: parsedAssetId }) }}</p>
-          </div>
+      <header class="flex flex-wrap items-end justify-between gap-3 pb-4">
+        <div>
+          <h1 class="text-3xl font-semibold">{{ $t("items.things") }}</h1>
+          <p class="mt-1 text-sm text-muted-foreground">
+            {{ $t("items.photos_first", { collection: collectionName }) }}
+          </p>
+          <p v-if="byAssetId" class="mt-2 text-sm">{{ $t("items.query_id", { id: parsedAssetId }) }}</p>
         </div>
-        <Button class="mb-auto h-12 w-full md:w-auto" @click.prevent="submit">
-          <MdiLoading v-if="loading" class="animate-spin" />
-          <MdiMagnify v-else />
-          {{ $t("global.search") }}
+        <p role="status" class="text-sm font-medium text-primary">{{ $t("items.results", { total }) }}</p>
+      </header>
+      <div v-if="hasFilters" class="flex flex-wrap items-center gap-2 pb-2">
+        <Button
+          v-for="location in selectedLocations"
+          :key="location.id"
+          size="sm"
+          variant="outline"
+          class="rounded-full"
+          :aria-label="$t('items.remove_place_filter', { name: location.name })"
+          @click="
+            selectedLocations = selectedLocations.filter(l => l.id !== location.id);
+            page = 1;
+          "
+        >
+          <MdiMapMarkerOutline /> {{ location.name }} <MdiClose />
         </Button>
+        <Button
+          v-for="tag in selectedTags"
+          :key="tag.id"
+          size="sm"
+          variant="outline"
+          class="rounded-full"
+          :aria-label="$t('items.remove_tag_filter', { name: tag.name })"
+          @click="
+            selectedTags = selectedTags.filter(t => t.id !== tag.id);
+            page = 1;
+          "
+        >
+          <MdiTagOutline /> {{ tag.name }} <MdiClose />
+        </Button>
+        <Button size="sm" variant="ghost" @click="clearFilters"><MdiDelete /> {{ $t("items.clear_filters") }}</Button>
       </div>
-
       <div class="flex w-full flex-wrap gap-2 py-2 md:flex-nowrap">
         <SearchFilter v-model="selectedLocations" :label="$t('global.locations')" :options="locationFlatTree" />
         <SearchFilter v-model="selectedTags" :label="$t('global.tags')" :options="tags" />
         <Popover>
           <PopoverTrigger as-child>
-            <Button size="sm" variant="outline"> {{ $t("items.options") }}</Button>
+            <Button size="sm" variant="outline"><MdiTune /> {{ $t("items.options") }}</Button>
           </PopoverTrigger>
-          <PopoverContent class="z-40 flex flex-col gap-2">
+          <PopoverContent class="z-40 flex max-h-[70vh] flex-col gap-2 overflow-y-auto">
             <Label class="flex cursor-pointer items-center">
               <Switch v-model="includeArchived" class="ml-auto" />
               <div class="grow" />
@@ -468,8 +504,56 @@
                 </SelectContent>
               </Select>
             </Label>
+            <div v-if="fieldSelector" class="flex flex-col gap-2 pb-2">
+              <p>{{ $t("items.custom_fields") }}</p>
+              <div v-for="(f, idx) in fieldTuples" :key="idx" class="flex flex-wrap gap-2">
+                <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
+                  <Label> {{ $t("items.field") }} </Label>
+                  <Select v-model="fieldTuples[idx]![0]" @update:model-value="fetchValues(f[0])">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('items.select_field')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="field in allFields" :key="field" :value="field"> {{ field }} </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
+                  <Label> {{ $t("items.field_value") }} </Label>
+                  <Select v-model="fieldTuples[idx]![1]">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('items.select_value')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="value in fieldValuesCache[f[0]]" :key="value" :value="value">
+                        {{ value }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="destructive"
+                  type="button"
+                  size="icon"
+                  class="my-auto"
+                  @click="fieldTuples.splice(idx, 1)"
+                >
+                  <MdiDelete />
+                </Button>
+              </div>
+              <Button type="button" size="sm" class="mt-2" @click="() => fieldTuples.push(['', ''])">
+                {{ $t("items.add") }}
+              </Button>
+            </div>
             <Separator />
-            <Button @click="reset"> {{ $t("items.reset_search") }} </Button>
+            <Button
+              @click="
+                page = 1;
+                search();
+              "
+              ><MdiTune /> {{ $t("items.apply_filters") }}
+            </Button>
+            <Button variant="outline" @click="clearFilters"><MdiDelete /> {{ $t("items.clear_filters") }} </Button>
           </PopoverContent>
         </Popover>
         <div class="grow" />
@@ -493,45 +577,9 @@
           </PopoverContent>
         </Popover>
       </div>
-      <div v-if="fieldSelector" class="flex flex-col gap-2 pb-2">
-        <p>{{ $t("items.custom_fields") }}</p>
-        <div v-for="(f, idx) in fieldTuples" :key="idx" class="flex flex-wrap gap-2">
-          <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
-            <Label> {{ $t("items.field") }} </Label>
-            <Select v-model="fieldTuples[idx]![0]" @update:model-value="fetchValues(f[0])">
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('items.select_field')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="field in allFields" :key="field" :value="field"> {{ field }} </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
-            <Label> {{ $t("items.field_value") }} </Label>
-            <Select v-model="fieldTuples[idx]![1]">
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('items.select_value')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="value in fieldValuesCache[f[0]]" :key="value" :value="value">
-                  {{ value }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="destructive" type="button" size="icon" class="my-auto" @click="fieldTuples.splice(idx, 1)">
-            <MdiDelete />
-          </Button>
-        </div>
-        <Button type="button" size="sm" class="mt-2" @click="() => fieldTuples.push(['', ''])">
-          {{ $t("items.add") }}
-        </Button>
-      </div>
     </div>
 
     <section :aria-label="$t('items.results', { total })" :aria-busy="loading" class="mt-4 space-y-3">
-      <p role="status" class="text-sm text-muted-foreground">{{ $t("items.results", { total }) }}</p>
       <ul class="space-y-3">
         <NightRow v-for="item in items" :key="item.id" :item="item" :location-flat-tree="locationFlatTree" />
       </ul>
