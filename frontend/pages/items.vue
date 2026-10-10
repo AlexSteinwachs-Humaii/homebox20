@@ -16,7 +16,15 @@
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import BaseContainer from "@/components/Base/Container.vue";
   import SearchFilter from "~/components/Search/Filter.vue";
-  import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
+  import NightRow from "~/components/Item/NightRow.vue";
+  import {
+    Pagination,
+    PaginationList,
+    PaginationListItem,
+    PaginationEllipsis,
+    PaginationPrev,
+    PaginationNext,
+  } from "@/components/ui/pagination";
   import type { LocationQueryRaw } from "vue-router";
 
   const { t } = useI18n();
@@ -37,6 +45,22 @@
   const loading = useMinLoader(500);
   const items = ref<EntitySummary[]>([]);
   const total = ref(0);
+  const { selectedCollection } = useCollections();
+  const { data: collectionSummary } = useAsyncData(
+    () => `things-statistics-${selectedCollection.value?.id || ""}`,
+    async () => {
+      const [statistics, group] = await Promise.all([api.stats.group(), api.group.get()]);
+      return {
+        total: statistics.error ? null : statistics.data.totalItems,
+        name: group.error ? null : group.data.name,
+      };
+    }
+  );
+
+  const collectionName = computed(
+    () => collectionSummary.value?.name || selectedCollection.value?.name || t("menu.collection")
+  );
+  const collectionTotal = computed(() => collectionSummary.value?.total);
 
   // Using useRouteQuery directly has two downsides
   // 1. It persists the default value in the query string
@@ -65,8 +89,9 @@
       return ref(val.value);
     }
     if (typeof defaultValue === "boolean") {
-      const val = useRouteQuery(key, defaultValue);
-      return ref(val.value);
+      const raw = useRoute().query[key];
+      const value = Array.isArray(raw) ? raw[0] : raw;
+      return ref(value == null ? defaultValue : value === "true");
     }
 
     throw Error(`Invalid query value type ${typeof defaultValue}`);
@@ -82,7 +107,7 @@
   });
 
   const query = useOptionalRouteQuery("q", "");
-  const includeArchived = useOptionalRouteQuery("archived", false);
+  const includeArchived = useOptionalRouteQuery("archived", true);
   const fieldSelector = useOptionalRouteQuery("fieldSelector", false);
   const negateTags = useOptionalRouteQuery("negateTags", false);
   const onlyWithoutPhoto = useOptionalRouteQuery("onlyWithoutPhoto", false);
@@ -123,10 +148,8 @@
       }
     }
 
-    // trigger search if no changes
-    if (!qTag && !qLoc) {
-      search();
-    }
+    // Always load the initial page, including an unfiltered collection.
+    await search();
 
     loading.value = false;
     window.scroll({
@@ -334,13 +357,13 @@
       return;
     }
 
-    if (!data.items || data.items.length === 0) {
-      resetItems();
-      return;
-    }
-
     total.value = data.total;
-    items.value = data.items;
+    items.value = data.items || [];
+    // A filter or page-size change may leave the current page beyond the last page.
+    const lastPage = Math.max(1, Math.ceil(total.value / pageSize.value));
+    if (page.value > lastPage) {
+      page.value = lastPage;
+    }
 
     loading.value = false;
     initialSearch.value = false;
@@ -376,14 +399,7 @@
     await search();
   }
 
-  const pagination = proxyRefs({
-    page,
-    pageSize,
-    totalSize: total,
-    setPage: (newPage: number) => {
-      page.value = newPage;
-    },
-  });
+  const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 </script>
 
 <template>
@@ -514,14 +530,48 @@
       </div>
     </div>
 
-    <section>
-      <ItemViewSelectable
-        :items="items"
-        :location-flat-tree="locationFlatTree"
-        :pagination="pagination"
-        disable-sort
-        @refresh="async () => search()"
-      />
+    <section :aria-label="$t('items.results', { total })" :aria-busy="loading" class="mt-4 space-y-3">
+      <p role="status" class="text-sm text-muted-foreground">{{ $t("items.results", { total }) }}</p>
+      <ul class="space-y-3">
+        <NightRow v-for="item in items" :key="item.id" :item="item" :location-flat-tree="locationFlatTree" />
+      </ul>
+      <p v-if="!loading && !items.length" class="rounded-xl border bg-card p-6 text-muted-foreground">
+        {{ $t("items.no_things_results") }}
+      </p>
+      <p class="text-sm text-muted-foreground">
+        <template v-if="collectionTotal != null">
+          {{
+            $t("items.showing_collection", {
+              count: items.length,
+              total: collectionTotal,
+              collection: collectionName,
+            })
+          }}
+        </template>
+        <template v-else>{{ $t("items.showing_matches", { count: items.length, total }) }}</template>
+        {{ includeArchived ? $t("items.archived_visible") : $t("items.archived_hidden") }}
+      </p>
+      <nav
+        v-if="total > pageSize"
+        :aria-label="$t('items.pagination')"
+        class="flex flex-wrap items-center justify-between gap-3"
+      >
+        <span class="text-sm text-muted-foreground">{{ $t("items.pages", { page, totalPages }) }}</span>
+        <Pagination v-model:page="page" :items-per-page="pageSize" :total="total" :sibling-count="1">
+          <PaginationList v-slot="{ items: pageItems }" class="flex items-center gap-1">
+            <PaginationPrev />
+            <template v-for="(entry, index) in pageItems" :key="index">
+              <PaginationListItem v-if="entry.type === 'page'" :value="entry.value" as-child>
+                <Button :variant="page === entry.value ? 'default' : 'outline'" class="size-10 p-0">{{
+                  entry.value
+                }}</Button>
+              </PaginationListItem>
+              <PaginationEllipsis v-else :index="index" />
+            </template>
+            <PaginationNext />
+          </PaginationList>
+        </Pagination>
+      </nav>
     </section>
   </BaseContainer>
 </template>
