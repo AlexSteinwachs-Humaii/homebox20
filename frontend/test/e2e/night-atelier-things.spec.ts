@@ -193,3 +193,17 @@ test("Shell search shares the query and removable deep-linked filters", async ({
   await expect(search).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test("Back restores included archived matches after the switch is turned off", async ({ page, context }) => {
+  const requests = await mockCollection(page, context);
+  await page.goto("/items?q=drill");
+  await expect.poll(() => requests.at(-1)?.searchParams.get("includeArchived")).toBe("true");
+  await page.getByRole("button", { name: "Options" }).click();
+  await page.getByRole("switch", { name: "Include Archived Items" }).click();
+  await expect.poll(() => requests.at(-1)?.searchParams.get("includeArchived")).toBe("false");
+  await expect(page.getByText(/Archived is hidden/)).toBeVisible();
+  await page.goBack();
+  await expect.poll(() => requests.at(-1)?.searchParams.get("includeArchived")).toBe("true");
+  await expect(page.getByText(/Archived stays visible/)).toBeVisible();
+  expect(new URL(page.url()).searchParams.has("archived")).toBe(false);
+});

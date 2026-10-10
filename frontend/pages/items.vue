@@ -261,7 +261,14 @@
     );
   }
 
+  function queryBool(params: typeof route.query, key: string, fallback: boolean) {
+    const raw = queryArray(params[key])[0];
+    return raw == null ? fallback : raw === "true";
+  }
+
   // Route navigation (including shell search and browser Back) uses the same filters.
+  // Refs that search() writes must be read back here, or Back leaves the list on the
+  // filters the URL no longer has — including hiding archived matches again.
   watch(
     () => route.query,
     params => {
@@ -275,6 +282,24 @@
       }
       if (JSON.stringify(tag) !== JSON.stringify(tagIDs.value)) {
         selectedTags.value = tags.value.filter(t => tag.includes(t.id));
+      }
+      const archived = queryBool(params, "archived", true);
+      if (archived !== includeArchived.value) includeArchived.value = archived;
+      const negate = queryBool(params, "negateTags", false);
+      if (negate !== negateTags.value) negateTags.value = negate;
+      const withoutPhoto = queryBool(params, "onlyWithoutPhoto", false);
+      if (withoutPhoto !== onlyWithoutPhoto.value) onlyWithoutPhoto.value = withoutPhoto;
+      const withPhoto = queryBool(params, "onlyWithPhoto", false);
+      if (withPhoto !== onlyWithPhoto.value) onlyWithPhoto.value = withPhoto;
+      const nextOrder = queryArray(params.orderBy)[0] || "name";
+      if (nextOrder !== orderBy.value) orderBy.value = nextOrder;
+      const fields = queryArray(params.fields).map(field => {
+        const eq = field.indexOf("=");
+        return (eq < 0 ? [field, ""] : [field.slice(0, eq), field.slice(eq + 1)]) as [string, string];
+      });
+      if (JSON.stringify(fields) !== JSON.stringify(fieldTuples.value)) {
+        fieldTuples.value = fields;
+        search();
       }
     }
   );
