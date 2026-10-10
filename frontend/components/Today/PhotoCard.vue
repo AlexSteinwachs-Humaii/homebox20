@@ -34,7 +34,7 @@
     <div class="space-y-1 p-3">
       <h3 class="truncate font-semibold">{{ entity.name }}</h3>
       <p v-if="place" class="text-sm text-muted-foreground">
-        {{ $t("home.place_items", { count: entity.itemCount }) }} · <Currency :amount="value ?? 0" />
+        {{ $t("home.place_items", { count: entity.itemCount || 0 }) }} · <Currency :amount="value ?? 0" />
       </p>
       <template v-else>
         <p class="truncate text-sm text-muted-foreground">{{ entity.parent?.name || $t("home.no_place") }}</p>

@@ -47,7 +47,7 @@ describe("Today activity", () => {
     mocks.rooms.mockResolvedValue({
       data: [
         { id: "garage", itemCount: 24 },
-        { id: "hall", itemCount: 0 },
+        { id: "hall" },
       ],
     });
     mocks.values.mockResolvedValue({ data: [{ id: "garage", total: 2140 }] });

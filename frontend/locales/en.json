@@ -508,7 +508,7 @@
         "scan_code": "Scan a code",
         "add_place": "Add a place",
         "commands": "Capture commands",
-        "place_items": "{count} things",
+        "place_items": "{count, plural, one {# thing} other {# things}}",
         "no_place": "No place",
         "activity_load_failed": "Could not load recent things and places. Please try again.",
         "items": "Items",

@@ -25,7 +25,12 @@ export function useTodayActivity() {
       return {
         groupId: requestedGroup,
         recent: recent.data.items,
-        places: rooms.data.map(place => ({ ...place, value: totals.get(place.id) ?? 0 })),
+        // itemCount is omitempty, so a room with no direct items arrives without it.
+        places: rooms.data.map(place => ({
+          ...place,
+          itemCount: place.itemCount ?? 0,
+          value: totals.get(place.id) ?? 0,
+        })),
       };
     }
   );
