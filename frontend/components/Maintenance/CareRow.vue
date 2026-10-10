@@ -12,7 +12,7 @@
   import { toast } from "@/components/ui/sonner";
   import { careMaintenanceUpdate } from "~/lib/datelib/careMaintenance";
 
-  const props = defineProps<{ row: CareRow }>();
+  const props = defineProps<{ row: CareRow; compact?: boolean }>();
   const emit = defineEmits<{ updated: [] }>();
   const { t } = useI18n();
   const busy = ref(false);
@@ -46,8 +46,11 @@
 <template>
   <article
     :data-care-kind="row.kind"
-    class="grid gap-4 rounded-xl border p-5 sm:grid-cols-[9rem_1fr_auto] sm:items-center"
-    :class="row.kind === 'coming_up' ? 'bg-background text-muted-foreground' : 'bg-card'"
+    class="grid gap-4 rounded-xl border p-5"
+    :class="[
+      row.kind === 'coming_up' ? 'bg-background text-muted-foreground' : 'bg-card',
+      compact ? 'content-start' : 'sm:grid-cols-[9rem_1fr_auto] sm:items-center',
+    ]"
   >
     <p
       class="text-xs font-semibold uppercase tracking-widest"
@@ -81,7 +84,7 @@
         </template>
       </p>
     </div>
-    <div class="justify-self-end">
+    <div :class="compact ? 'justify-self-start' : 'justify-self-end'">
       <Button v-if="row.kind === 'overdue'" :disabled="busy" :aria-busy="busy" @click="updateEntry('done')">
         <MdiCheck aria-hidden="true" />{{ t("care.mark_done") }}
       </Button>

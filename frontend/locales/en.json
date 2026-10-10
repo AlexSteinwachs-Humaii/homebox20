@@ -499,6 +499,12 @@
         "entity_type": "Entity Type"
     },
     "home": {
+        "updated": "Updated",
+        "collection_counts": "Collection at a glance",
+        "items": "Items",
+        "places": "Places",
+        "need_photo": "Need a photo",
+        "load_failed": "Could not load the collection summary. Please try again.",
         "quick_statistics": "Quick Statistics",
         "recently_added": "Recently Added",
         "storage_locations": "Storage Locations",
