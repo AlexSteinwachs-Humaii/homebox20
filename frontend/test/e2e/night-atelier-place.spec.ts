@@ -19,7 +19,8 @@ test("A place lists child rooms before its direct things, with direct counts and
   const places = [
     { id: "garage", name: "Garage", itemCount: 2 },
     { id: "cabinet", name: "Tool cabinet", itemCount: 11 },
-    { id: "shelf", name: "Shelf", itemCount: 0 },
+    // Real summaries omit a zero itemCount. The room must still say 0 things.
+    { id: "shelf", name: "Shelf" },
   ];
   await page.route("**/api/**", async route => {
     const url = new URL(route.request().url());
@@ -61,6 +62,17 @@ test("A place lists child rooms before its direct things, with direct counts and
         id: "cabinet",
         name: "Tool cabinet",
         description: "Tools live here.",
+        parent: places[0],
+        children: [],
+        attachments: [],
+        tags: [],
+        fields: [],
+      };
+    else if (path === "/api/v1/entities/shelf")
+      json = {
+        id: "shelf",
+        name: "Shelf",
+        description: "Empty shelf.",
         parent: places[0],
         children: [],
         attachments: [],
@@ -124,7 +136,7 @@ test("A place lists child rooms before its direct things, with direct counts and
     "href",
     "/items?loc=garage"
   );
-  await expect(main.getByRole("link", { name: "House", exact: true })).toBeVisible();
+  await expect(main.getByRole("link", { name: "House", exact: true })).toHaveAttribute("href", "/home");
   await page.screenshot({
     path: test.info().outputPath("place-desktop.png"),
     fullPage: true,
@@ -133,6 +145,11 @@ test("A place lists child rooms before its direct things, with direct counts and
   await expect(main.getByRole("heading", { name: "Tool cabinet", exact: true })).toBeVisible();
   await expect(main.locator("[data-place-totals]")).toContainText("11 things");
   await expect(main.locator("[data-place-totals]")).toContainText("$640");
+  await page.goto("/location/shelf");
+  await expect(main.getByRole("heading", { name: "Shelf", exact: true })).toBeVisible();
+  await expect(main.locator("[data-place-totals]")).toContainText("0 things");
+  await expect(main.locator("[data-place-totals]")).toContainText("$0");
+  await page.goto("/location/cabinet");
   await expect(main.getByText("No child places yet.")).toBeVisible();
   await expect(main.getByText("No things live directly in this place yet.")).toBeVisible();
   await main.getByRole("link", { name: "Garage", exact: true }).click();

@@ -84,7 +84,12 @@
   const collectionName = computed(
     () => roomSummary.value?.name || selectedCollection.value?.name || t("menu.collection")
   );
-  const directCount = computed(() => roomSummary.value?.places?.find(p => p.id === locationId.value)?.itemCount);
+  // itemCount is omitempty, so an empty room arrives without it. Hide the figure only while summaries are still loading.
+  const directCount = computed(() => {
+    const places = roomSummary.value?.places;
+    if (!places) return undefined;
+    return places.find(p => p.id === locationId.value)?.itemCount ?? 0;
+  });
   const directValue = computed(() => placeValue(locationId.value));
   function placeValue(id: string) {
     if (!roomSummary.value?.values) return undefined;
@@ -269,14 +274,14 @@
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink as-child
-                ><NuxtLink to="/">{{ collectionName }}</NuxtLink></BreadcrumbLink
-              >
+              <BreadcrumbLink as-child class="text-primary hover:underline">
+                <NuxtLink to="/home">{{ collectionName }}</NuxtLink>
+              </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <template v-if="location.parent">
               <BreadcrumbItem>
-                <BreadcrumbLink as-child>
+                <BreadcrumbLink as-child class="text-primary hover:underline">
                   <NuxtLink :to="`/location/${location.parent.id}`">{{ location.parent.name }}</NuxtLink>
                 </BreadcrumbLink>
               </BreadcrumbItem>
