@@ -7,6 +7,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/sysadminsmedia/homebox/backend/internal/core/services/reporting/eventbus"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/entity"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/ent/group"
@@ -18,7 +19,8 @@ import (
 // associated with an item in the database. An entry represents a maintenance event
 // that has been performed on an item.
 type MaintenanceEntryRepository struct {
-	db *ent.Client
+	db  *ent.Client
+	bus *eventbus.EventBus
 }
 
 type MaintenanceEntryCreate struct {
@@ -123,6 +125,9 @@ func (r *MaintenanceEntryRepository) Create(ctx context.Context, gid, itemID uui
 		SetCost(input.Cost).
 		Save(ctx)
 
+	if err == nil {
+		r.bus.Publish(eventbus.EventEntityMutation, eventbus.GroupMutationEvent{GID: gid})
+	}
 	return mapMaintenanceEntryErr(item, err)
 }
 
@@ -146,6 +151,9 @@ func (r *MaintenanceEntryRepository) Update(ctx context.Context, gid uuid.UUID, 
 		SetCost(input.Cost).
 		Save(ctx)
 
+	if err == nil {
+		r.bus.Publish(eventbus.EventEntityMutation, eventbus.GroupMutationEvent{GID: gid})
+	}
 	return mapMaintenanceEntryErr(item, err)
 }
 
@@ -205,5 +213,6 @@ func (r *MaintenanceEntryRepository) Delete(ctx context.Context, gid uuid.UUID, 
 	if deleted == 0 {
 		return &ent.NotFoundError{}
 	}
+	r.bus.Publish(eventbus.EventEntityMutation, eventbus.GroupMutationEvent{GID: gid})
 	return nil
 }

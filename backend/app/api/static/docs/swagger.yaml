@@ -1082,6 +1082,56 @@ definitions:
       search_engine_name:
         type: string
     type: object
+  repo.CareQueue:
+    properties:
+      comingUp:
+        items:
+          $ref: '#/definitions/repo.CareRow'
+        type: array
+      count:
+        type: integer
+      needsYou:
+        items:
+          $ref: '#/definitions/repo.CareRow'
+        type: array
+    type: object
+  repo.CareRow:
+    properties:
+      daysLate:
+        type: integer
+      daysRemaining:
+        type: integer
+      description:
+        type: string
+      itemId:
+        type: string
+      itemName:
+        type: string
+      kind:
+        enum:
+        - overdue
+        - warranty
+        - missing_photo
+        - coming_up
+        type: string
+      locationPath:
+        items:
+          $ref: '#/definitions/repo.EntityPath'
+        type: array
+      maintenanceId:
+        type: string
+        x-nullable: true
+        x-omitempty: true
+      name:
+        type: string
+      purchasePrice:
+        example: "0"
+        type: string
+      scheduledDate:
+        type: string
+      warrantyExpires:
+        type: string
+    type: object
   repo.DuplicateOptions:
     properties:
       copyAttachments:
@@ -2490,6 +2540,20 @@ paths:
       summary: Get Item by Asset ID
       tags:
       - Items
+  /v1/care:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/repo.CareQueue'
+      security:
+      - Bearer: []
+      summary: Query the group-scoped Care queue
+      tags:
+      - Care
   /v1/currencies:
     get:
       produces:

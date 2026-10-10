@@ -682,14 +682,7 @@ func (r *EntityRepository) QueryByGroup(ctx context.Context, gid uuid.UUID, q En
 		}
 
 		if q.OnlyWithoutPhoto {
-			andPredicates = append(andPredicates, entity.Not(
-				entity.HasAttachmentsWith(
-					attachment.And(
-						attachment.Primary(true),
-						attachment.TypeEQ(attachment.TypePhoto),
-					),
-				)),
-			)
+			andPredicates = append(andPredicates, withoutPrimaryPhoto())
 		}
 
 		if q.OnlyWithPhoto {
@@ -2916,4 +2909,9 @@ func ConvertEntitiesToTree(items []FlatTreeItem) []TreeItem {
 	return lo.Map(rootIds, func(id uuid.UUID, _ int) TreeItem {
 		return *itemMap[id]
 	})
+}
+
+// withoutPrimaryPhoto is shared by EntityQuery.OnlyWithoutPhoto and Care.
+func withoutPrimaryPhoto() predicate.Entity {
+	return entity.Not(entity.HasAttachmentsWith(attachment.Primary(true), attachment.TypeEQ(attachment.TypePhoto)))
 }

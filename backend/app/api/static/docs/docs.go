@@ -211,6 +211,30 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/care": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Care"
+                ],
+                "summary": "Query the group-scoped Care queue",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/repo.CareQueue"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/currencies": {
             "get": {
                 "produces": [
@@ -4760,6 +4784,79 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "search_engine_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "repo.CareQueue": {
+            "type": "object",
+            "properties": {
+                "comingUp": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/repo.CareRow"
+                    }
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "needsYou": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/repo.CareRow"
+                    }
+                }
+            }
+        },
+        "repo.CareRow": {
+            "type": "object",
+            "properties": {
+                "daysLate": {
+                    "type": "integer"
+                },
+                "daysRemaining": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "itemId": {
+                    "type": "string"
+                },
+                "itemName": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "overdue",
+                        "warranty",
+                        "missing_photo",
+                        "coming_up"
+                    ]
+                },
+                "locationPath": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/repo.EntityPath"
+                    }
+                },
+                "maintenanceId": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "x-omitempty": true
+                },
+                "name": {
+                    "type": "string"
+                },
+                "purchasePrice": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "scheduledDate": {
+                    "type": "string"
+                },
+                "warrantyExpires": {
                     "type": "string"
                 }
             }

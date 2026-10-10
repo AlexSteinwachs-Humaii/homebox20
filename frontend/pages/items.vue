@@ -1,12 +1,13 @@
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
   import { toast } from "@/components/ui/sonner";
-  import { Input } from "~/components/ui/input";
   import type { EntitySummary, TagSummary } from "~~/lib/api/types/data-contracts";
   import { useTagStore } from "~/stores/tags";
   import { useLocationStore } from "~~/stores/locations";
-  import MdiLoading from "~icons/mdi/loading";
-  import MdiMagnify from "~icons/mdi/magnify";
+  import MdiClose from "~icons/mdi/close";
+  import MdiMapMarkerOutline from "~icons/mdi/map-marker-outline";
+  import MdiTagOutline from "~icons/mdi/tag-outline";
+  import MdiTune from "~icons/mdi/tune";
   import MdiDelete from "~icons/mdi/delete";
   import { Button } from "@/components/ui/button";
   import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +17,15 @@
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import BaseContainer from "@/components/Base/Container.vue";
   import SearchFilter from "~/components/Search/Filter.vue";
-  import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
+  import NightRow from "~/components/Item/NightRow.vue";
+  import {
+    Pagination,
+    PaginationList,
+    PaginationListItem,
+    PaginationEllipsis,
+    PaginationPrev,
+    PaginationNext,
+  } from "@/components/ui/pagination";
   import type { LocationQueryRaw } from "vue-router";
 
   const { t } = useI18n();
@@ -26,7 +35,7 @@
   });
 
   useHead({
-    title: "HomeBox | " + t("global.items"),
+    title: "HomeBox | " + t("items.things"),
   });
 
   const searchLocked = ref(false);
@@ -37,6 +46,22 @@
   const loading = useMinLoader(500);
   const items = ref<EntitySummary[]>([]);
   const total = ref(0);
+  const { selectedCollection } = useCollections();
+  const { data: collectionSummary } = useAsyncData(
+    () => `things-statistics-${selectedCollection.value?.id || ""}`,
+    async () => {
+      const [statistics, group] = await Promise.all([api.stats.group(), api.group.get()]);
+      return {
+        total: statistics.error ? null : statistics.data.totalItems,
+        name: group.error ? null : group.data.name,
+      };
+    }
+  );
+
+  const collectionName = computed(
+    () => collectionSummary.value?.name || selectedCollection.value?.name || t("menu.collection")
+  );
+  const collectionTotal = computed(() => collectionSummary.value?.total);
 
   // Using useRouteQuery directly has two downsides
   // 1. It persists the default value in the query string
@@ -65,8 +90,9 @@
       return ref(val.value);
     }
     if (typeof defaultValue === "boolean") {
-      const val = useRouteQuery(key, defaultValue);
-      return ref(val.value);
+      const raw = useRoute().query[key];
+      const value = Array.isArray(raw) ? raw[0] : raw;
+      return ref(value == null ? defaultValue : value === "true");
     }
 
     throw Error(`Invalid query value type ${typeof defaultValue}`);
@@ -82,7 +108,7 @@
   });
 
   const query = useOptionalRouteQuery("q", "");
-  const includeArchived = useOptionalRouteQuery("archived", false);
+  const includeArchived = useOptionalRouteQuery("archived", true);
   const fieldSelector = useOptionalRouteQuery("fieldSelector", false);
   const negateTags = useOptionalRouteQuery("negateTags", false);
   const onlyWithoutPhoto = useOptionalRouteQuery("onlyWithoutPhoto", false);
@@ -112,7 +138,7 @@
     queryParamsInitialized.value = true;
     searchLocked.value = false;
 
-    const qFields = route.query.fields as string[];
+    const qFields = queryArray(route.query.fields);
     if (qFields) {
       fieldTuples.value = qFields.map(f => f.split("=") as [string, string]);
 
@@ -123,10 +149,8 @@
       }
     }
 
-    // trigger search if no changes
-    if (!qTag && !qLoc) {
-      search();
-    }
+    // Always load the initial page, including an unfiltered collection.
+    await search();
 
     loading.value = false;
     window.scroll({
@@ -231,11 +255,51 @@
     }
   });
 
+  function queryArray(value: typeof route.query.q): string[] {
+    return (Array.isArray(value) ? value : value == null ? [] : [value]).filter(
+      (v): v is string => typeof v === "string"
+    );
+  }
+
+  function queryBool(params: typeof route.query, key: string, fallback: boolean) {
+    const raw = queryArray(params[key])[0];
+    return raw == null ? fallback : raw === "true";
+  }
+
+  // Route navigation (including shell search and browser Back) uses the same filters.
+  // Refs that search() writes must be read back here, or Back leaves the list on the
+  // filters the URL no longer has — including hiding archived matches again.
   watch(
-    () => useRoute().query.q,
-    (newV, oldV) => {
-      if (newV !== oldV) {
-        query.value = (newV as string) || "";
+    () => route.query,
+    params => {
+      query.value = queryArray(params.q)[0] || "";
+      page.value = Number(queryArray(params.page)[0]) || 1;
+      if (!queryParamsInitialized.value) return;
+      const loc = queryArray(params.loc);
+      const tag = queryArray(params.tag);
+      if (JSON.stringify(loc) !== JSON.stringify(locIDs.value)) {
+        selectedLocations.value = locations.value.filter(l => loc.includes(l.id));
+      }
+      if (JSON.stringify(tag) !== JSON.stringify(tagIDs.value)) {
+        selectedTags.value = tags.value.filter(t => tag.includes(t.id));
+      }
+      const archived = queryBool(params, "archived", true);
+      if (archived !== includeArchived.value) includeArchived.value = archived;
+      const negate = queryBool(params, "negateTags", false);
+      if (negate !== negateTags.value) negateTags.value = negate;
+      const withoutPhoto = queryBool(params, "onlyWithoutPhoto", false);
+      if (withoutPhoto !== onlyWithoutPhoto.value) onlyWithoutPhoto.value = withoutPhoto;
+      const withPhoto = queryBool(params, "onlyWithPhoto", false);
+      if (withPhoto !== onlyWithPhoto.value) onlyWithPhoto.value = withPhoto;
+      const nextOrder = queryArray(params.orderBy)[0] || "name";
+      if (nextOrder !== orderBy.value) orderBy.value = nextOrder;
+      const fields = queryArray(params.fields).map(field => {
+        const eq = field.indexOf("=");
+        return (eq < 0 ? [field, ""] : [field.slice(0, eq), field.slice(eq + 1)]) as [string, string];
+      });
+      if (JSON.stringify(fields) !== JSON.stringify(fieldTuples.value)) {
+        fieldTuples.value = fields;
+        search();
       }
     }
   );
@@ -334,13 +398,13 @@
       return;
     }
 
-    if (!data.items || data.items.length === 0) {
-      resetItems();
-      return;
-    }
-
     total.value = data.total;
-    items.value = data.items;
+    items.value = data.items || [];
+    // A filter or page-size change may leave the current page beyond the last page.
+    const lastPage = Math.max(1, Math.ceil(total.value / pageSize.value));
+    if (page.value > lastPage) {
+      page.value = lastPage;
+    }
 
     loading.value = false;
     initialSearch.value = false;
@@ -348,69 +412,82 @@
 
   watchDebounced([page, pageSize, query, selectedTags, selectedLocations], search, { debounce: 250, maxWait: 1000 });
 
-  async function submit() {
-    // Set URL Params
-    const fields = [];
-    for (const t of fieldTuples.value) {
-      if (t[0] && t[1]) {
-        fields.push(`${t[0]}=${t[1]}`);
-      }
-    }
-
-    // Reset Pagination
+  async function clearFilters() {
+    selectedLocations.value = [];
+    selectedTags.value = [];
+    fieldTuples.value = [];
+    negateTags.value = false;
+    onlyWithoutPhoto.value = false;
+    onlyWithPhoto.value = false;
     page.value = 1;
-
-    // Perform Search
     await search();
   }
 
-  async function reset() {
-    // Set URL Params
-    const fields = [];
-    for (const t of fieldTuples.value) {
-      if (t[0] && t[1]) {
-        fields.push(`${t[0]}=${t[1]}`);
-      }
-    }
+  const hasFilters = computed(
+    () =>
+      selectedLocations.value.length ||
+      selectedTags.value.length ||
+      fieldTuples.value.length ||
+      negateTags.value ||
+      onlyWithoutPhoto.value ||
+      onlyWithPhoto.value
+  );
 
-    await search();
-  }
-
-  const pagination = proxyRefs({
-    page,
-    pageSize,
-    totalSize: total,
-    setPage: (newPage: number) => {
-      page.value = newPage;
-    },
-  });
+  const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 </script>
 
 <template>
   <BaseContainer>
     <div v-if="locations && tags">
-      <div class="flex flex-wrap items-end gap-4 md:flex-nowrap">
-        <div class="w-full">
-          <Input v-model:model-value="query" :placeholder="$t('global.search')" class="h-12" />
-          <div v-if="byAssetId" class="pl-2 pt-2 text-sm">
-            <p>{{ $t("items.query_id", { id: parsedAssetId }) }}</p>
-          </div>
+      <header class="flex flex-wrap items-end justify-between gap-3 pb-4">
+        <div>
+          <h1 class="text-3xl font-semibold">{{ $t("items.things") }}</h1>
+          <p class="mt-1 text-sm text-muted-foreground">
+            {{ $t("items.photos_first", { collection: collectionName }) }}
+          </p>
+          <p v-if="byAssetId" class="mt-2 text-sm">{{ $t("items.query_id", { id: parsedAssetId }) }}</p>
         </div>
-        <Button class="mb-auto h-12 w-full md:w-auto" @click.prevent="submit">
-          <MdiLoading v-if="loading" class="animate-spin" />
-          <MdiMagnify v-else />
-          {{ $t("global.search") }}
+        <p role="status" class="text-sm font-medium text-primary">{{ $t("items.results", { total }) }}</p>
+      </header>
+      <div v-if="hasFilters" class="flex flex-wrap items-center gap-2 pb-2">
+        <Button
+          v-for="location in selectedLocations"
+          :key="location.id"
+          size="sm"
+          variant="outline"
+          class="rounded-full"
+          :aria-label="$t('items.remove_place_filter', { name: location.name })"
+          @click="
+            selectedLocations = selectedLocations.filter(l => l.id !== location.id);
+            page = 1;
+          "
+        >
+          <MdiMapMarkerOutline /> {{ location.name }} <MdiClose />
         </Button>
+        <Button
+          v-for="tag in selectedTags"
+          :key="tag.id"
+          size="sm"
+          variant="outline"
+          class="rounded-full"
+          :aria-label="$t('items.remove_tag_filter', { name: tag.name })"
+          @click="
+            selectedTags = selectedTags.filter(t => t.id !== tag.id);
+            page = 1;
+          "
+        >
+          <MdiTagOutline /> {{ tag.name }} <MdiClose />
+        </Button>
+        <Button size="sm" variant="ghost" @click="clearFilters"><MdiDelete /> {{ $t("items.clear_filters") }}</Button>
       </div>
-
       <div class="flex w-full flex-wrap gap-2 py-2 md:flex-nowrap">
         <SearchFilter v-model="selectedLocations" :label="$t('global.locations')" :options="locationFlatTree" />
         <SearchFilter v-model="selectedTags" :label="$t('global.tags')" :options="tags" />
         <Popover>
           <PopoverTrigger as-child>
-            <Button size="sm" variant="outline"> {{ $t("items.options") }}</Button>
+            <Button size="sm" variant="outline"><MdiTune /> {{ $t("items.options") }}</Button>
           </PopoverTrigger>
-          <PopoverContent class="z-40 flex flex-col gap-2">
+          <PopoverContent class="z-40 flex max-h-[70vh] flex-col gap-2 overflow-y-auto">
             <Label class="flex cursor-pointer items-center">
               <Switch v-model="includeArchived" class="ml-auto" />
               <div class="grow" />
@@ -452,8 +529,56 @@
                 </SelectContent>
               </Select>
             </Label>
+            <div v-if="fieldSelector" class="flex flex-col gap-2 pb-2">
+              <p>{{ $t("items.custom_fields") }}</p>
+              <div v-for="(f, idx) in fieldTuples" :key="idx" class="flex flex-wrap gap-2">
+                <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
+                  <Label> {{ $t("items.field") }} </Label>
+                  <Select v-model="fieldTuples[idx]![0]" @update:model-value="fetchValues(f[0])">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('items.select_field')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="field in allFields" :key="field" :value="field"> {{ field }} </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
+                  <Label> {{ $t("items.field_value") }} </Label>
+                  <Select v-model="fieldTuples[idx]![1]">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('items.select_value')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="value in fieldValuesCache[f[0]]" :key="value" :value="value">
+                        {{ value }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="destructive"
+                  type="button"
+                  size="icon"
+                  class="my-auto"
+                  @click="fieldTuples.splice(idx, 1)"
+                >
+                  <MdiDelete />
+                </Button>
+              </div>
+              <Button type="button" size="sm" class="mt-2" @click="() => fieldTuples.push(['', ''])">
+                {{ $t("items.add") }}
+              </Button>
+            </div>
             <Separator />
-            <Button @click="reset"> {{ $t("items.reset_search") }} </Button>
+            <Button
+              @click="
+                page = 1;
+                search();
+              "
+              ><MdiTune /> {{ $t("items.apply_filters") }}
+            </Button>
+            <Button variant="outline" @click="clearFilters"><MdiDelete /> {{ $t("items.clear_filters") }} </Button>
           </PopoverContent>
         </Popover>
         <div class="grow" />
@@ -477,51 +602,49 @@
           </PopoverContent>
         </Popover>
       </div>
-      <div v-if="fieldSelector" class="flex flex-col gap-2 pb-2">
-        <p>{{ $t("items.custom_fields") }}</p>
-        <div v-for="(f, idx) in fieldTuples" :key="idx" class="flex flex-wrap gap-2">
-          <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
-            <Label> {{ $t("items.field") }} </Label>
-            <Select v-model="fieldTuples[idx]![0]" @update:model-value="fetchValues(f[0])">
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('items.select_field')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="field in allFields" :key="field" :value="field"> {{ field }} </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="flex w-full flex-col gap-1 md:w-auto md:grow">
-            <Label> {{ $t("items.field_value") }} </Label>
-            <Select v-model="fieldTuples[idx]![1]">
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('items.select_value')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="value in fieldValuesCache[f[0]]" :key="value" :value="value">
-                  {{ value }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="destructive" type="button" size="icon" class="my-auto" @click="fieldTuples.splice(idx, 1)">
-            <MdiDelete />
-          </Button>
-        </div>
-        <Button type="button" size="sm" class="mt-2" @click="() => fieldTuples.push(['', ''])">
-          {{ $t("items.add") }}
-        </Button>
-      </div>
     </div>
 
-    <section>
-      <ItemViewSelectable
-        :items="items"
-        :location-flat-tree="locationFlatTree"
-        :pagination="pagination"
-        disable-sort
-        @refresh="async () => search()"
-      />
+    <section :aria-label="$t('items.results', { total })" :aria-busy="loading" class="mt-4 space-y-3">
+      <ul class="space-y-3">
+        <NightRow v-for="item in items" :key="item.id" :item="item" :location-flat-tree="locationFlatTree" />
+      </ul>
+      <p v-if="!loading && !items.length" class="rounded-xl border bg-card p-6 text-muted-foreground">
+        {{ $t("items.no_things_results") }}
+      </p>
+      <p class="text-sm text-muted-foreground">
+        <template v-if="collectionTotal != null">
+          {{
+            $t("items.showing_collection", {
+              count: items.length,
+              total: collectionTotal,
+              collection: collectionName,
+            })
+          }}
+        </template>
+        <template v-else>{{ $t("items.showing_matches", { count: items.length, total }) }}</template>
+        {{ includeArchived ? $t("items.archived_visible") : $t("items.archived_hidden") }}
+      </p>
+      <nav
+        v-if="total > pageSize"
+        :aria-label="$t('items.pagination')"
+        class="flex flex-wrap items-center justify-between gap-3"
+      >
+        <span class="text-sm text-muted-foreground">{{ $t("items.pages", { page, totalPages }) }}</span>
+        <Pagination v-model:page="page" :items-per-page="pageSize" :total="total" :sibling-count="1">
+          <PaginationList v-slot="{ items: pageItems }" class="flex items-center gap-1">
+            <PaginationPrev />
+            <template v-for="(entry, index) in pageItems" :key="index">
+              <PaginationListItem v-if="entry.type === 'page'" :value="entry.value" as-child>
+                <Button :variant="page === entry.value ? 'default' : 'outline'" class="size-10 p-0">{{
+                  entry.value
+                }}</Button>
+              </PaginationListItem>
+              <PaginationEllipsis v-else :index="index" />
+            </template>
+            <PaginationNext />
+          </PaginationList>
+        </Pagination>
+      </nav>
     </section>
   </BaseContainer>
 </template>

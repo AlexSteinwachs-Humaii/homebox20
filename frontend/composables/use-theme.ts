@@ -12,7 +12,7 @@ export function useTheme(): UseTheme {
   const htmlEl = ref<HTMLElement | null>(null);
 
   const applyThemeToDom = (newTheme: DaisyTheme) => {
-    if (!htmlEl.value) {
+    if (!htmlEl.value || htmlEl.value.classList.contains("night-atelier")) {
       return;
     }
 
@@ -33,20 +33,44 @@ export function useTheme(): UseTheme {
 
   onMounted(() => {
     htmlEl.value = document.querySelector("html");
-    applyThemeToDom(theme.value);
-  });
-
-  watch(theme, newTheme => {
-    applyThemeToDom(newTheme);
+    const startWatching = () => {
+      applyThemeToDom(theme.value);
+      watch(theme, newTheme => {
+        applyThemeToDom(newTheme);
+      });
+    };
+    // Night Atelier is a layout appearance, not a saved DaisyUI preference.
+    // Do not read or watch the preference while it is on the document. Layouts
+    // can overlap, so wait until the class leaves before restoring login.
+    const el = htmlEl.value;
+    if (el?.classList.contains("night-atelier")) {
+      if (typeof MutationObserver === "function" && el instanceof Element) {
+        const observer = new MutationObserver(() => {
+          if (!el.classList.contains("night-atelier")) {
+            observer.disconnect();
+            startWatching();
+          }
+        });
+        observer.observe(el, { attributes: true, attributeFilter: ["class"] });
+        onUnmounted(() => observer.disconnect());
+      }
+      return;
+    }
+    startWatching();
   });
 
   return { theme, setTheme };
 }
 
 export function useIsThemeInList(list: DaisyTheme[]) {
+  const route = useRoute();
   const theme = useTheme();
 
   return computed(() => {
+    // Existing date pickers need dark mode, not the person's theme preference.
+    if (route.meta.layout !== "empty") {
+      return list.includes("dark");
+    }
     return list.includes(theme.theme.value);
   });
 }

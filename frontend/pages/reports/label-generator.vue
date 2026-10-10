@@ -16,6 +16,9 @@
     middleware: ["auth"],
     layout: false,
   });
+  // Authenticated standalone tool; keep its existing layout and print styles.
+  useNightAtelier();
+
   useHead({
     title: "HomeBox | " + t("reports.label_generator.title"),
   });
