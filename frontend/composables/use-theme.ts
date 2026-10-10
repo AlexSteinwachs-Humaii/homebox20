@@ -53,6 +53,7 @@ export function useIsThemeInList(list: DaisyTheme[]) {
 
 export const themes = [
   "dark",
+  "theme-usps",
   "theme-aqua",
   "theme-black",
   "theme-bumblebee",
